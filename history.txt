@@ -24,3 +24,6 @@ npm install express
 npm install --save-dev @types/jquery
 
 node playground/server.js
+
+
+git remote add origin https://github.com/ikuo0/script_prototype.git
