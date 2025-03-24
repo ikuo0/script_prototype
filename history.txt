@@ -1,0 +1,26 @@
+
+npm init -y
+npm install --save-dev jest
+npm install --save-dev mocha
+// npx mocha src/utils.js
+
+// ルートディレクトリでないと試験できない
+npm test -- script_engine/test/utils.test.js
+npm test -- script_engine/test/operations.test.js
+npm test -- script_engine/test/parser.test.js
+npm test -- ./script_engine/test/executor.test.js 
+npm test -- ./script_engine/test/executor.test.js --grep "ループ"
+npm test -- ./script_engine/test/executor.test.js --grep "分割実行"
+
+find ./prototype2/src -type f -name "*.js" -exec stat -c%s {} + | awk '{sum+=$1} END {print sum, "bytes"}'
+find ./prototype2/test -type f -name "*.js" -exec stat -c%s {} + | awk '{sum+=$1} END {print sum, "bytes"}'
+
+find ./prototype2/src -type f -name "*.js" -exec cat {} + | wc -l
+find ./prototype2/test -type f -name "*.js" -exec cat {} + | wc -l
+
+npm install express
+
+// UI開発時に jquery の $ が認識されないので実行してみた
+npm install --save-dev @types/jquery
+
+node playground/server.js

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="style.css">
+    <title>分割UI Playground</title>
+</head>
+<body>
+    <div id="container">
+        <div id="top_contents">
+            <div id="code_editor">
+                <textarea id="code-input" placeholder="ここにコードを入力..."></textarea>
+            </div>
+            <div id="main_contents">
+                実行結果がここに表示されます
+            </div>
+        </div>
+        <div id="button-bar">
+            <button id="button_build">ビルド</button>
+            <button id="button_execute">実行</button>
+            <button id="button_description">概要</button>
+            <button id="button_sample">サンプル</button>
+        </div>
+    </div>
+
+    <!-- スクリプトの読み込み -->
+    <script src="lib/jquery-3.7.1.min.js"></script>
+    <script src="app.js"></script>
+    <script src="index.js"></script>
+
+    <!-- スクリプトエンジン周りのJSファイル読み込み -->
+    <script src="lib/script_engine/utils.js"></script>
+    <script src="lib/script_engine/runtime.js"></script>
+    <script src="lib/script_engine/operations.js"></script>
+    <script src="lib/script_engine/parser.js"></script>
+    <script src="lib/script_engine/executor.js"></script>
+
+    <script>
+        var config = {
+            "redirectList": {
+                "description": "main"
+            }
+        };
+        var app = new Application(config);
+        app.start();
+        // 簡単なサンプル動作
+        // document.getElementById('run-btn').onclick = function () {
+        //     const code = document.getElementById('code-input').value;
+        //     document.getElementById('output').textContent = '出力:\n' + code.toUpperCase(); // 仮の実行
+        // };
+
+        // document.getElementById('load-sample-btn').onclick = function () {
+        //     const sample = 'PRINT "Hello, World!"';
+        //     document.getElementById('code-input').value = sample;
+        // };
+        
+    </script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+<h1>
+    サンプル
+</h1>
+
+<h2>
+    Hello World
+</h2>
+<pre class="code-preview"><code>
+    MAIN
+      PRINT "Hello, World!"
+    END_MAIN
+</code></pre>
+
+<h2>
+    変数、加算、比較、分岐
+</h2>
+<pre class="code-preview"><code>
+    MAIN
+      DATA a 1
+      DATA b 2
+      DATA c 0
+      MATH_ADD c a b
+      PRINT "c=" "@c"
+
+      DATA flag 0
+      CMP_EQUAL flag c 0
+      IF flag
+        PRINT "c is 0"
+      ELSE
+        PRINT "c is not 0"
+      END_IF
+    END_MAIN
+</code></pre>
+
+<h2>
+    関数
+</h2>
+<pre class="code-preview"><code>
+    FUNCTION SUM3 a b c result
+      MATH_ADD result a b
+      MATH_ADD result result c
+      RETURN
+    END_FUNCTION
+
+    MAIN
+      DATA a 1
+      DATA b 2
+      DATA c 3
+      DATA result 0
+      CALL_FUNCTION SUM3 a b c result
+      PRINT "result=" "@result"
+    END_MAIN
+</code></pre>
+
+<h2>
+    ループ
+</h2>
+<pre class="code-preview"><code>
+    MAIN
+      DATA total 0
+      LOOP 10 i
+        PRINT "i=" "@i"
+        MATH_ADD total total 1
+      END_LOOP
+      PRINT "total=" "@total"
+    END_MAIN
+</code></pre>

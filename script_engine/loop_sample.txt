@@ -1,0 +1,38 @@
+    DATA %COUNTER, 0      ; COUNTER = 0
+OUTER_LOOP:
+    LOADLHS %COUNTER
+    LOADRHS 3
+    LT                    ; COUNTER < 3 ?
+    JZ OUTER_END          ; FALSEなら外側ループ終了
+
+    PUSH %COUNTER         ; 外側ループカウンタを退避
+    DATA %COUNTER, 0      ; COUNTER = 0 (内側ループ用)
+
+INNER_LOOP:
+    LOADLHS %COUNTER
+    LOADRHS 4
+    LT                    ; COUNTER < 4 ?
+    JZ INNER_END          ; FALSEなら内側ループ終了
+
+    POP %LHS              ; 外側ループの COUNTER を取得
+    PUSH %LHS             ; 再び退避（PRINT で消えないように）
+
+    PRINT %LHS, %COUNTER  ; (外側ループカウンタ, 内側ループカウンタ) を出力
+
+    LOADLHS %COUNTER
+    LOADRHS 1
+    ADD                   ; COUNTER++
+    DATA %COUNTER, %LHS
+    JMP INNER_LOOP
+
+INNER_END:
+    POP %COUNTER          ; 外側ループの COUNTER を復元
+
+    LOADLHS %COUNTER
+    LOADRHS 1
+    ADD                   ; COUNTER++
+    DATA %COUNTER, %LHS
+    JMP OUTER_LOOP
+
+OUTER_END:
+    EXIT

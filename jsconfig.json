@@ -1,0 +1,13 @@
+{
+    "compilerOptions": {
+      "target": "es5", // または "es6"
+      "checkJs": true,
+      "baseUrl": "./"
+    },
+    "include": [
+      "script_engine/src/*.js",
+      "script_engine/test/*.js",
+      "playground/public/**/*.js",
+      "playground/public/**/*.html"
+    ]
+}

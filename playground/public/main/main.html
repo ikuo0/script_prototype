@@ -1,0 +1,161 @@
+    <h1>スクリプト言語の概要</h1>
+
+    <div class="section">
+        <h2>基本構文</h2>
+
+        <h3>MAIN / END_MAIN</h3>
+        <p>スクリプトのエントリーポイントを定義する。</p>
+        <p>コメントは <code> ; </code> を使用する</p>
+        <p>関数や引数の区切り文字は半角空白</p>
+        <pre class="code-preview"><code>
+            MAIN; メイン処理
+              PRINT "Hello, World!"
+            END_MAIN
+        </code></pre>
+
+        <h3>変数の定義、代入</h3>
+        <p>変数は <code> DATA </code> で定義し、<code> DATA </code> で代入する。</p>
+        <pre class="code-preview"><code>
+            MAIN
+              DATA a 1; 変数 a を定義し、1 を代入
+              DATA b 2; 変数 b を定義し、2 を代入
+              DATA a 9; 既存の変数 a に 9 を代入
+            END_MAIN
+        </code></pre>
+
+        <h3>関数の定義　FUNCTION / END_FUNCTION / CALL_FUNCTION</h3>
+        <p>変数は全て参照渡しであるため関数内の変更は呼び出し元にも反映される</p>
+        <p>途中で処理を中断する場合は RETURN する</p>
+        <p>定義した関数は CALL_FUNCTION で呼び出す</p>
+        <pre class="code-preview"><code>
+            FUNCTION SUM3 a b c result
+              MATH_ADD result a b
+              MATH_ADD result result c
+              RETURN
+            END_FUNCTION
+
+            MAIN
+              DATA a 1
+              DATA b 2
+              DATA c 3
+              DATA result 0
+              CALL_FUNCTION SUM3 a b c result
+              PRINT "@result"
+            END_MAIN
+        </code></pre>
+    </div>
+
+    <div class="section">
+        <h2>制御構文</h2>
+
+        <h3>条件分岐（IF / ELSE）</h3>
+        <p>条件分岐は <code> IF / ELSE </code> で行う</p>
+        <p>IF文は変数を１つ指定し True 分岐する、NOTや計算式は判定できない</p>
+        <pre class="code-preview"><code>
+            MAIN
+              DATA a 1
+              DATA b 2
+              DATA flag 0
+              CMP_GREATER flag a b; a > b なら flag に 1 が代入される
+              IF flag
+                PRINT "a is not greater than b"
+              ELSE
+                PRINT "a is greater than b"
+              END_IF
+            END_MAIN
+        </code></pre>
+
+        <h3>繰り返し（LOOP / END_LOOP）</h3>
+        <p>指定した回数処理を繰り返す、1 開始であるため LOOP 3 i とした場合には 1, 2, 3 とカウンタがインクリメントされる</p>
+        <pre class="code-preview"><code>
+            MAIN
+              LOOP 3 i
+                PRINT "i=" "@i"
+                LOOP 4 j
+                  PRINT "j=" "@j"
+                END_LOOP
+              END_LOOP
+            END_MAIN
+        </code></pre>
+
+    </div>
+
+    <div class="section">
+        <h2>組み込み関数</h2>
+        <h3>出力（PRINT）</h3>
+        <p>標準出力に文字列を出力する</p>
+        <p>ダブルクォーテーションで囲った文字を出力可能</p>
+        <p>ダブルクォーテーションで囲い @ を先頭に付けた変数を出力可能</p>
+        <pre class="code-preview"><code>
+            MAIN
+              PRINT "Hello World!"; 通常の文字列出力
+              DATA a 1
+              DATA b 2
+              DATA flag 0
+              CMP_LESS flag a b; a < b なら flag に 1 が代入される
+              PRINT "flag=" "@flag"; 変数の出力
+            END_MAIN
+        </code></pre>
+    </div>
+
+    <div class="section">
+        <h2>命令一覧</h2>
+        <h3>MAIN / END_MAIN</h3>
+        <p>メイン処理の開始と終了を示すブロック構文です。この範囲内に実行されるコードを記述します。</p>
+        
+        <h3>FUNCTION / END_FUNCTION / RETURN</h3>
+        <p>関数の定義を行うための構文です。FUNCTION で開始し、END_FUNCTION で終了します。RETURN によって関数の戻り値を指定できます。</p>
+        
+        <h3>DATA</h3>
+        <p>変数の新規作成および初期値の設定を行います。例：<code>DATA @x, 100</code></p>
+        
+        <h3>IF / ELSE / END_IF</h3>
+        <p>条件分岐を行う構文です。IF で条件を判定し、必要に応じて ELSE で分岐し、END_IF で終了します。</p>
+        
+        <h3>LOOP / END_LOOP</h3>
+        <p>ループ処理の開始と終了を示すブロックです。LOOP で繰り返しを開始し、END_LOOP まで繰り返します。</p>
+        
+        <h3>CALL_FUNCTION</h3>
+        <p>定義済みの関数を呼び出します。引数および戻り値は参照によってやり取りされます。</p>
+        
+        <h3>MATH_ADD</h3>
+        <p>加算を行う命令です。形式：<code>MATH_ADD result lhs rhs</code>（result に lhs + rhs の結果を格納）</p>
+        
+        <h3>MATH_SUB</h3>
+        <p>減算を行う命令です。形式：<code>MATH_SUB result lhs rhs</code>（result に lhs - rhs の結果を格納）</p>
+        
+        <h3>MATH_MUL</h3>
+        <p>乗算を行う命令です。形式：<code>MATH_MUL result lhs rhs</code>（result に lhs × rhs の結果を格納）</p>
+        
+        <h3>MATH_DIV</h3>
+        <p>除算を行う命令です。形式：<code>MATH_DIV result lhs rhs</code>（result に lhs ÷ rhs の結果を格納）</p>
+        
+        <h3>CMP_GREATER</h3>
+        <p>比較命令。lhs が rhs より大きい場合に true を result に格納します。</p>
+        
+        <h3>CMP_GREATER_EQUAL</h3>
+        <p>lhs が rhs 以上であるかを比較し、結果を result に格納します。</p>
+        
+        <h3>CMP_LESS</h3>
+        <p>lhs が rhs より小さいかを比較し、結果を result に格納します。</p>
+        
+        <h3>CMP_LESS_EQUAL</h3>
+        <p>lhs が rhs 以下であるかを比較し、結果を result に格納します。</p>
+        
+        <h3>CMP_EQUAL</h3>
+        <p>lhs と rhs が等しいかを比較し、結果を result に格納します。</p>
+        
+        <h3>CMP_NOT_EQUAL</h3>
+        <p>lhs と rhs が異なるかを比較し、結果を result に格納します。</p>
+        
+        <h3>PRINT</h3>
+        <p>指定された値や変数の内容を標準出力に表示します。例：<code>PRINT @message</code></p>
+        
+        
+    </div>
+
+    <div class="section">
+        <h2>実行モデル</h2>
+        <h3>構文解析 → 実行配列生成 → 実行</h3>
+        <h3>スコープと変数の寿命</h3>
+    </div>
