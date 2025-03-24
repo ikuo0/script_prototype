@@ -1,0 +1,2 @@
+# script_prototype
+JavaScriptによるスクリプトプロトタイプ作成
