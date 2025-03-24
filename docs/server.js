@@ -3,7 +3,7 @@ const express = require('express');
 const app = express();
 const PORT = 3000;
 
-const staticDir = path.join(__dirname, 'public');
+const staticDir = path.join(__dirname, './');
 app.use(express.static(staticDir));
 
 app.listen(PORT, () => {
