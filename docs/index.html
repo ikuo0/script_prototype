@@ -9,7 +9,44 @@
     <div id="container">
         <div id="top_contents">
             <div id="code_editor">
-                <textarea id="code-input" placeholder="ここにコードを入力..."></textarea>
+                <textarea id="code-input" placeholder="ここにコードを入力...">
+FUNCTION FUNC_FIB n result
+DATA flag 0
+CMP_EQUAL flag n 0
+IF flag
+    DATA result 0
+    RETURN
+END_IF
+
+CMP_EQUAL flag n 1
+IF flag
+    DATA result 1
+    RETURN
+END_IF
+
+DATA arg1 0
+DATA res1 0
+MATH_SUB arg1 n 1
+CALL_FUNCTION FUNC_FIB arg1 res1
+
+DATA arg2 0
+DATA res2 0
+MATH_SUB arg2 n 2
+CALL_FUNCTION FUNC_FIB arg2 res2
+
+MATH_ADD result res1 res2
+PRINT "result=" "@result"
+END_FUNCTION
+
+MAIN
+PRINT "START MAIN"
+DATA n 7
+DATA result 0
+CALL_FUNCTION FUNC_FIB n result
+PRINT "@n" "-th FIBONACCI = " "@result"
+PRINT "END MAIN"
+END_MAIN
+                </textarea>
             </div>
             <div id="main_contents">
                 実行結果がここに表示されます
