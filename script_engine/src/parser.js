@@ -1,8 +1,13 @@
 
-function ParseToken(value, type) {
+function ParseToken(index, value, type) {
     var self = this;
+    self.index = index;
     self.value = value;
     self.type = type;
+    self.toString = function() {
+        var me = this;
+        return String(me.index + 1) + "行目, [" + me.value + "]" + ", type=[" + me.type + "]";
+    }
 }
 
 /**
@@ -11,7 +16,7 @@ function ParseToken(value, type) {
  * @constructor
  * @property {ParseToken[]} statusStack - 解析ステータスを積むスタック
  * @property {number} parseIndex - 解析中の行番号
- * @property {ParseToken[][]} callList - 呼び出しリスト
+ * @property {any[]} callList - 中間言語配列、命令や変数名、リテラル値の配列
  * @property {number} labelIndex - ラベルインデックス
  * @property {string[]} ifLabelStack - IF文のラベルを積むスタック
  * @property {string[]} loopLabelStack - ループ文のラベルを積むスタック
@@ -24,6 +29,7 @@ function ParseContext() {
     self.statusStack = ["none"];
     self.parseIndex = 0;
     self.callList = [];
+    self.lineNumbers = [];
     self.labelIndex = 0;
     self.ifLabelStack = [];
     self.loopLabelStack = [];
@@ -40,6 +46,17 @@ function ParseContext() {
         me.labelIndex += 1;
         return label;
     }
+    /**
+     * callList を extend した時は lineNumbers に parseIndex を extend分だけ追加する
+     * @param {any[]} commands
+     */
+    self.extendCommands = function(index, commands) {
+        var me = this;
+        commands.forEach(function(command) {
+            me.callList.push(command);
+            me.lineNumbers.push(index);
+        });
+    }
 }
 
 function ParseTokenTypes() {}
@@ -48,59 +65,36 @@ ParseTokenTypes.INTEGER = Enum();
 ParseTokenTypes.FLOAT = Enum();
 ParseTokenTypes.STRING = Enum();
 
-function createParseToken(value, inQuotes) {
+/**
+ * 
+ * @param {number} index 処理インデックス（後で行番号変換に使う）
+ * @param {*} value トークンの値
+ * @param {*} inQuotes 文字列かどうか
+ * @returns 
+ */
+function createParseToken(index, value, inQuotes) {
     if(inQuotes) {
-        return new ParseToken(value, ParseTokenTypes.STRING);
+        return new ParseToken(index, value, ParseTokenTypes.STRING);
     } else if(isNumeric(value)) {
         if(value.includes(".")) {
-            return new ParseToken(parseFloat(value), ParseTokenTypes.FLOAT);
+            return new ParseToken(index, parseFloat(value), ParseTokenTypes.FLOAT);
         } else {
-            return new ParseToken(parseInt(value), ParseTokenTypes.INTEGER);
+            return new ParseToken(index, parseInt(value), ParseTokenTypes.INTEGER);
         }
     } else if(isIdentity(value)) {
-        return new ParseToken(value, ParseTokenTypes.IDENTITY);
+        return new ParseToken(index, value, ParseTokenTypes.IDENTITY);
     } else {
-        error("不正なトークン: " + value);
+        throw new Error("不正なトークン: " + value);
     }
 }
 
-// function splitTokens(input) {
-//     var result = [];
-//     var current = "";
-//     var inQuotes = false;
-    
-//     for (var i = 0; i < input.length; i++) {
-//         var char = input[i];
-//         if (char === '"') {
-//             if(inQuotes) {
-//                 var token = createParseToken(current, inQuotes);
-//                 result.push(token);
-//                 current = '';
-//             }
-//             inQuotes = !inQuotes;
-//         } else if (char === " " && !inQuotes) {
-//             if (current !== "") {
-//                 var token = createParseToken(current, inQuotes);
-//                 result.push(token);
-//                 current = '';
-//             }
-//         } else {
-//             current += char;
-//         }
-//     }
-
-//     if(inQuotes) {
-//         error("クォートが閉じられていません, " + input);
-//     }
-    
-//     if (current !== "") {
-//         var token = createParseToken(current, inQuotes);
-//         result.push(token);
-//     }
-    
-//     return result;
-// }
-function splitTokens(input) {
+/**
+ * 
+ * @param {number} index 処理インデックス（後で行番号変換に使う）
+ * @param {*} input 
+ * @returns {ParseToken[]}
+ */
+function splitTokens(index, input) {
     var result = [];
     var current = "";
     var inQuotes = false;
@@ -110,7 +104,7 @@ function splitTokens(input) {
 
         if (char === '"') {
             if (inQuotes) {
-                var token = createParseToken(current, inQuotes);
+                var token = createParseToken(index, current, inQuotes);
                 result.push(token);
                 current = '';
             }
@@ -120,7 +114,7 @@ function splitTokens(input) {
             break;
         } else if (char === " " && !inQuotes) {
             if (current !== "") {
-                var token = createParseToken(current, inQuotes);
+                var token = createParseToken(index, current, inQuotes);
                 result.push(token);
                 current = '';
             }
@@ -130,11 +124,11 @@ function splitTokens(input) {
     }
 
     if (inQuotes) {
-        error("クォートが閉じられていません, " + input);
+        throw new Error("クォートが閉じられていません, " + input);
     }
 
     if (current !== "") {
-        var token = createParseToken(current, inQuotes);
+        var token = createParseToken(index, current, inQuotes);
         result.push(token);
     }
 
@@ -150,10 +144,27 @@ function sourceToTokensList(source) {
         if(line.length == 0) {
             continue;
         }
-        var tokens = splitTokens(line);
+        try {
+            var tokens = splitTokens(i, line);
+        } catch(e) {
+            error("トークンの分割に失敗しました: " + String(i + 1)  + " 行目, " + line + ", " + String(e));
+        }
+        if(tokens.length == 0) {
+            continue;
+        }
         token_list.push(tokens);
     }
     return token_list;
+}
+
+/**
+ * 
+ * @param {ParseContext} parseCtx 
+ * @param {string} message 
+ */
+function compileError(parseCtx, message) {
+    var line = parseCtx.parseIndex + 1;
+    error("コンパイルエラー: " + line + "行目, " + message);
 }
 
 /**
@@ -193,7 +204,7 @@ function parseGlobal(parseCtx, command) {
     if(operation.value == "MAIN") {
         parseCtx.statusStack.push("main");
         if("main" in parseCtx.jumpTable) {
-            error("main関数は既に定義されています");
+            compileError(parseCtx, "main関数は既に定義されています");
         }
         parseCtx.jumpTable["main"] = parseCtx.callList.length;
     } else if(operation.value == "FUNCTION") {
@@ -201,11 +212,11 @@ function parseGlobal(parseCtx, command) {
         parseCtx.commandStack.push(command);
         var function_label_token = args[0];
         if(function_label_token.type != ParseTokenTypes.IDENTITY) {
-            error("関数名が不正です: " + function_label_token.value);
+            compileError(parseCtx, "関数名が不正です: " + function_label_token.value);
         }
         var function_label = function_label_token.value;
         if(function_label in parseCtx.jumpTable) {
-            error("関数 " + function_label + " は既に定義されています");
+            compileError(parseCtx, "関数 " + function_label + " は既に定義されています");
         }
         parseCtx.jumpTable[function_label] = parseCtx.callList.length;
 
@@ -213,7 +224,7 @@ function parseGlobal(parseCtx, command) {
         // スタック先頭は引数の数
         // 必要な引数の数と実際の引数の数を比較し、異なる場合はエラー終了
         var labelFunctionStart = parseCtx.createJumpLabel("function_start_");
-        parseCtx.callList.extend([
+        parseCtx.extendCommands(operation.index, [
             [Operations.PEEK, "%LHS", 1], // 引数の数を取得
             [Operations.LOADRHS, functionArgsLength],
             [Operations.EQ],
@@ -225,9 +236,9 @@ function parseGlobal(parseCtx, command) {
         for(var i = 0; i < functionArgsLength; i++) {
             var argToken = args[i + 1];
             if(argToken.type != ParseTokenTypes.IDENTITY) {
-                error("関数の引数には変数を指定してください、リテラル値は指定できません。 引数が不正です: " + argToken.value);
+                compileError(parseCtx, "関数の引数には変数を指定してください、リテラル値は指定できません。 引数が不正です: " + argToken.value);
             }
-            parseCtx.callList.extend([
+            parseCtx.extendCommands(operation.index, [
                 [Operations.DATA, convertAssignmentTarget(argToken), 0],
                 [Operations.PEEK, convertAssignmentTarget(argToken), i + 2],
             ]);
@@ -250,22 +261,22 @@ function parseDefault(parseCtx, command) {
         // DATA [変数名] [値]
         var lToken = args[0];
         if(lToken.type != ParseTokenTypes.IDENTITY) {
-            error("代入処理エラー、第1引数の変数名が不正です: " + lToken.value);
+            compileError(parseCtx, "代入処理エラー、第1引数の変数名が不正です: " + lToken.value);
         }
         var rToken = args[1];
-        parseCtx.callList.extend([
+        parseCtx.extendCommands(operation.index, [
             [Operations.DATA, convertAssignmentTarget(lToken), convertReferenceToken(rToken)]
         ]);
     } else if(operation.value =="IF"){
         // 第1引数がTRUEなら処理、そうでなければジャンプ
         var boolToken = args[0];
         if(boolToken.type != ParseTokenTypes.IDENTITY) {
-            error("IF文の第1引数が不正です、IF の引数に指定できるのは bool型の変数のみです: " + boolToken.value);
+            compileError(parseCtx, "IF文の第1引数が不正です、IF の引数に指定できるのは bool型の変数のみです: " + boolToken.value);
         }
         parseCtx.statusStack.push("if");
         var label = parseCtx.createJumpLabel("end_if_or_else_");
         parseCtx.ifLabelStack.push(label);
-        parseCtx.callList.extend([
+        parseCtx.extendCommands(operation.index, [
             [Operations.LOADLHS, convertReferenceToken(boolToken)],
             [Operations.LOADRHS, 1],
             [Operations.EQ],
@@ -275,7 +286,7 @@ function parseDefault(parseCtx, command) {
         // CALL_FUNCTION [関数名] [引数] [引数] ...
         var funcNameToken = args[0];
         if(funcNameToken.type != ParseTokenTypes.IDENTITY) {
-            error("関数名が不正です: " + funcNameToken.value);
+            compileError(parseCtx, "関数名が不正です: " + funcNameToken.value);
         }
         var argTokens = args.slice(1); // 関数名を省いた残りの引数配列
         var funcArgsLength = argTokens.length;
@@ -283,20 +294,20 @@ function parseDefault(parseCtx, command) {
         for(var i = funcArgsLength - 1; i >= 0; i -= 1) {
             var token = argTokens[i];
             if(token.type != ParseTokenTypes.IDENTITY) {
-                error("変数名が不正です: " + token.value + ", type=" + token.type);
+                compileError(parseCtx, "変数名が不正です: " + token.value + ", type=" + token.type);
             }
-            parseCtx.callList.push([Operations.PUSH, convertAssignmentTarget(token)]);
+            parseCtx.extendCommands(operation.index, [[Operations.PUSH, convertAssignmentTarget(token)]]);
         }
         // 引数の数をPUSH
-        parseCtx.callList.push([Operations.PUSH, funcArgsLength]);
+        parseCtx.extendCommands(operation.index, [[Operations.PUSH, funcArgsLength]]);
         // 関数を呼び出す、引数（参照渡し）をPOPする
-        parseCtx.callList.push([Operations.CALL, funcNameToken.value]);
+        parseCtx.extendCommands(operation.index, [[Operations.CALL, funcNameToken.value]]);
         // 引数の数を捨てる
-        parseCtx.callList.push([Operations.POP, "%W"]);
+        parseCtx.extendCommands(operation.index, [[Operations.POP, "%W"]]);
         for(var i = 0; i < funcArgsLength; i++) {
             var token = argTokens[i];
             // 引数処理でIdentity検査済みなのでここではチェックしない
-            parseCtx.callList.push([Operations.POP, convertAssignmentTarget(token)]);
+            parseCtx.extendCommands(operation.index, [[Operations.POP, convertAssignmentTarget(token)]]);
         }
 
     } else if(operation.value == "LOOP") {
@@ -304,19 +315,19 @@ function parseDefault(parseCtx, command) {
         // 回数分ループ
         // 引数の数は２個
         if(args.length != 2) {
-            error("LOOP の引数の数が不正です: " + args.length);
+            compileError(parseCtx, "LOOP の引数の数が不正です: " + args.length);
         }
         var countToken = args[0];
         if(countToken.type != ParseTokenTypes.INTEGER) {
-            error("ループ回数が不正です: " + countToken.value);
+            compileError(parseCtx, "ループ回数が不正です: " + countToken.value);
         }
         var countRefToken = args[1];
         if(countRefToken.type != ParseTokenTypes.IDENTITY) {
-            error("カウンタ変数名が不正です: " + countRefToken.value);
+            compileError(parseCtx, "カウンタ変数名が不正です: " + countRefToken.value);
         }
         parseCtx.commandStack.push([operation].concat(args));
         parseCtx.statusStack.push("loop");
-        parseCtx.callList.extend([
+        parseCtx.extendCommands(operation.index, [
             [Operations.DATA, convertReferenceToken(countRefToken), 1],
         ]);
         var startLabel = parseCtx.createJumpLabel("loop_start_");
@@ -324,13 +335,13 @@ function parseDefault(parseCtx, command) {
         parseCtx.jumpTable[startLabel] = parseCtx.callList.length;
         parseCtx.loopLabelStack.push(endLabel);
         parseCtx.loopLabelStack.push(startLabel);
-        parseCtx.callList.extend([
+        parseCtx.extendCommands(operation.index, [
             [Operations.LOADLR, convertReferenceToken(countRefToken), convertReferenceToken(countToken)],
             [Operations.LTE],
             [Operations.JZ, endLabel],
         ]);
     } else if(operation.value == "RETURN") {
-        parseCtx.callList.extend([
+        parseCtx.extendCommands(operation.index, [
             [Operations.JMP, parseCtx.functionLabelStack.tail(0)],
         ]);
     ////////////////////////////////////////
@@ -339,15 +350,15 @@ function parseDefault(parseCtx, command) {
     } else if(operation.value == "MATH_ADD") {
         // MATH_ADD [変数名] [左辺値] [右辺値]
         if(args.length != 3) {
-            error("MATH_ADD の引数の数が不正です: " + args.length);
+            compileError(parseCtx, "MATH_ADD の引数の数が不正です: " + args.length);
         }
         var result = args[0];
         if(result.type != ParseTokenTypes.IDENTITY) {
-            error("代入処理エラー、第1引数の変数名が不正です: " + result.value);
+            compileError(parseCtx, "代入処理エラー、第1引数の変数名が不正です: " + result.value);
         }
         var lToken = args[1];
         var rToken = args[2];
-        parseCtx.callList.extend([
+        parseCtx.extendCommands(operation.index, [
             [Operations.LOADLR, convertReferenceToken(lToken), convertReferenceToken(rToken)],
             [Operations.ADD],
             [Operations.MOV, convertAssignmentTarget(result), "%LHS"],
@@ -355,15 +366,15 @@ function parseDefault(parseCtx, command) {
     } else if(operation.value == "MATH_SUB") {
         // MATH_SUB [変数名] [左辺値] [右辺値]
         if(args.length != 3) {
-            error("MATH_SUB の引数の数が不正です: " + args.length);
+            compileError(parseCtx, "MATH_SUB の引数の数が不正です: " + args.length);
         }
         var result = args[0];
         if(result.type != ParseTokenTypes.IDENTITY) {
-            error("代入処理エラー、第1引数の変数名が不正です: " + result.value);
+            compileError(parseCtx, "代入処理エラー、第1引数の変数名が不正です: " + result.value);
         }
         var lToken = args[1];
         var rToken = args[2];
-        parseCtx.callList.extend([
+        parseCtx.extendCommands(operation.index, [
             [Operations.LOADLR, convertReferenceToken(lToken), convertReferenceToken(rToken)],
             [Operations.SUB],
             [Operations.MOV, convertAssignmentTarget(result), "%LHS"],
@@ -371,15 +382,15 @@ function parseDefault(parseCtx, command) {
     } else if(operation.value == "MATH_MUL") {
         // MATH_MUL [変数名] [左辺値] [右辺値]
         if(args.length != 3) {
-            error("MATH_MUL の引数の数が不正です: " + args.length);
+            compileError(parseCtx, "MATH_MUL の引数の数が不正です: " + args.length);
         }
         var result = args[0];
         if(result.type != ParseTokenTypes.IDENTITY) {
-            error("代入処理エラー、第1引数の変数名が不正です: " + result.value);
+            compileError(parseCtx, "代入処理エラー、第1引数の変数名が不正です: " + result.value);
         }
         var lToken = args[1];
         var rToken = args[2];
-        parseCtx.callList.extend([
+        parseCtx.extendCommands(operation.index, [
             [Operations.LOADLR, convertReferenceToken(lToken), convertReferenceToken(rToken)],
             [Operations.MUL],
             [Operations.MOV, convertAssignmentTarget(result), "%LHS"],
@@ -387,15 +398,15 @@ function parseDefault(parseCtx, command) {
     } else if(operation.value == "MATH_DIV") {
         // MATH_DIV [変数名] [左辺値] [右辺値]
         if(args.length != 3) {
-            error("MATH_DIV の引数の数が不正です: " + args.length);
+            compileError(parseCtx, "MATH_DIV の引数の数が不正です: " + args.length);
         }
         var result = args[0];
         if(result.type != ParseTokenTypes.IDENTITY) {
-            error("代入処理エラー、第1引数の変数名が不正です: " + result.value);
+            compileError(parseCtx, "代入処理エラー、第1引数の変数名が不正です: " + result.value);
         }
         var lToken = args[1];
         var rToken = args[2];
-        parseCtx.callList.extend([
+        parseCtx.extendCommands(operation.index, [
             [Operations.LOADLR, convertReferenceToken(lToken), convertReferenceToken(rToken)],
             [Operations.DIV],
             [Operations.MOV, convertAssignmentTarget(result), "%LHS"],
@@ -403,16 +414,16 @@ function parseDefault(parseCtx, command) {
     } else if(operation.value == "CMP_GREATER") {
         // CMP_GREATER [変数名] [左辺値] [右辺値]
         if(args.length != 3) {
-            error("CMP_GREATER の引数の数が不正です: " + args.length);
+            compileError(parseCtx, "CMP_GREATER の引数の数が不正です: " + args.length);
         }
         // 比較結果を変数名に格納
         var result = args[0];
         if(result.type != ParseTokenTypes.IDENTITY) {
-            error("代入処理エラー、第1引数の変数名が不正です: " + result.value);
+            compileError(parseCtx, "代入処理エラー、第1引数の変数名が不正です: " + result.value);
         }
         var lToken = args[1];
         var rToken = args[2];
-        parseCtx.callList.extend([
+        parseCtx.extendCommands(operation.index, [
             [Operations.LOADLR, convertReferenceToken(lToken), convertReferenceToken(rToken)],
             [Operations.GT],
             [Operations.MOV, convertAssignmentTarget(result), "%LHS"],
@@ -420,16 +431,16 @@ function parseDefault(parseCtx, command) {
     } else if(operation.value == "CMP_GREATER_EQUAL") {
         // CMP_GREATER_EQUAL [変数名] [左辺値] [右辺値]
         if(args.length != 3) {
-            error("CMP_GREATER_EQUAL の引数の数が不正です: " + args.length);
+            compileError(parseCtx, "CMP_GREATER_EQUAL の引数の数が不正です: " + args.length);
         }
         // 比較結果を変数名に格納
         var result = args[0];
         if(result.type != ParseTokenTypes.IDENTITY) {
-            error("代入処理エラー、第1引数の変数名が不正です: " + result.value);
+            compileError(parseCtx, "代入処理エラー、第1引数の変数名が不正です: " + result.value);
         }
         var lToken = args[1];
         var rToken = args[2];
-        parseCtx.callList.extend([
+        parseCtx.extendCommands(operation.index, [
             [Operations.LOADLR, convertReferenceToken(lToken), convertReferenceToken(rToken)],
             [Operations.GTE],
             [Operations.MOV, convertAssignmentTarget(result), "%LHS"],
@@ -437,16 +448,16 @@ function parseDefault(parseCtx, command) {
     } else if(operation.value == "CMP_LESS") {
         // CMP_LESS [変数名] [左辺値] [右辺値]
         if(args.length != 3) {
-            error("CMP_LESS の引数の数が不正です: " + args.length);
+            compileError(parseCtx, "CMP_LESS の引数の数が不正です: " + args.length);
         }
         // 比較結果を変数名に格納
         var result = args[0];
         if(result.type != ParseTokenTypes.IDENTITY) {
-            error("代入処理エラー、第1引数の変数名が不正です: " + result.value);
+            compileError(parseCtx, "代入処理エラー、第1引数の変数名が不正です: " + result.value);
         }
         var lToken = args[1];
         var rToken = args[2];
-        parseCtx.callList.extend([
+        parseCtx.extendCommands(operation.index, [
             [Operations.LOADLR, convertReferenceToken(lToken), convertReferenceToken(rToken)],
             [Operations.LT],
             [Operations.MOV, convertAssignmentTarget(result), "%LHS"],
@@ -454,16 +465,16 @@ function parseDefault(parseCtx, command) {
     } else if(operation.value == "CMP_LESS_EQUAL") {
         // CMP_LESS_EQUAL [変数名] [左辺値] [右辺値]
         if(args.length != 3) {
-            error("CMP_LESS_EQUAL の引数の数が不正です: " + args.length);
+            compileError(parseCtx, "CMP_LESS_EQUAL の引数の数が不正です: " + args.length);
         }
         // 比較結果を変数名に格納
         var result = args[0];
         if(result.type != ParseTokenTypes.IDENTITY) {
-            error("代入処理エラー、第1引数の変数名が不正です: " + result.value);
+            compileError(parseCtx, "代入処理エラー、第1引数の変数名が不正です: " + result.value);
         }
         var lToken = args[1];
         var rToken = args[2];
-        parseCtx.callList.extend([
+        parseCtx.extendCommands(operation.index, [
             [Operations.LOADLR, convertReferenceToken(lToken), convertReferenceToken(rToken)],
             [Operations.LTE],
             [Operations.MOV, convertAssignmentTarget(result), "%LHS"],
@@ -471,16 +482,16 @@ function parseDefault(parseCtx, command) {
     } else if(operation.value == "CMP_EQUAL") {
         // CMP_EQUAL [変数名] [左辺値] [右辺値]
         if(args.length != 3) {
-            error("CMP_EQUAL の引数の数が不正です: " + args.length);
+            compileError(parseCtx, "CMP_EQUAL の引数の数が不正です: " + args.length);
         }
         // 比較結果を変数名に格納
         var result = args[0];
         if(result.type != ParseTokenTypes.IDENTITY) {
-            error("代入処理エラー、第1引数の変数名が不正です: " + result.value);
+            compileError(parseCtx, "代入処理エラー、第1引数の変数名が不正です: " + result.value);
         }
         var lToken = args[1];
         var rToken = args[2];
-        parseCtx.callList.extend([
+        parseCtx.extendCommands(operation.index, [
             [Operations.LOADLR, convertReferenceToken(lToken), convertReferenceToken(rToken)],
             [Operations.EQ],
             [Operations.MOV, convertAssignmentTarget(result), "%LHS"],
@@ -488,16 +499,16 @@ function parseDefault(parseCtx, command) {
     } else if(operation.value == "CMP_NOT_EQUAL") {
         // CMP_NOT_EQUAL [変数名] [左辺値] [右辺値]
         if(args.length != 3) {
-            error("CMP_NOT_EQUAL の引数の数が不正です: " + args.length);
+            compileError(parseCtx, "CMP_NOT_EQUAL の引数の数が不正です: " + args.length);
         }
         // 比較結果を変数名に格納
         var result = args[0];
         if(result.type != ParseTokenTypes.IDENTITY) {
-            error("代入処理エラー、第1引数の変数名が不正です: " + result.value);
+            compileError(parseCtx, "代入処理エラー、第1引数の変数名が不正です: " + result.value);
         }
         var lToken = args[1];
         var rToken = args[2];
-        parseCtx.callList.extend([
+        parseCtx.extendCommands(operation.index, [
             [Operations.LOADLR, convertReferenceToken(lToken), convertReferenceToken(rToken)],
             [Operations.NEQ],
             [Operations.MOV, convertAssignmentTarget(result), "%LHS"],
@@ -525,7 +536,7 @@ function parseDefault(parseCtx, command) {
                 values.push("*" + token.value);
             }
         }
-        parseCtx.callList.push([Operations.PRINT].concat(values));
+        parseCtx.extendCommands(operation.index, [[Operations.PRINT].concat(values)]);
     } else {
         error("未知のオペレーション: " + String(operation));
     }
@@ -545,7 +556,7 @@ function parseMain(parseCtx, command) {
         if(status != "main") {
             error("END_MAIN が不正です");
         }
-        parseCtx.callList.push([Operations.EXIT]);
+        parseCtx.extendCommands(operation.index, [[Operations.EXIT]]);
     } else {
         parseDefault(parseCtx, command);
     }
@@ -572,11 +583,11 @@ function parseFunction(parseCtx, command) {
             // 「戻り先PC」、「引数」の分で +2 する
             for(var i = stack_args.length - 1; i >= 0; i -= 1) {
                 var token = stack_args[i];
-                parseCtx.callList.push([Operations.POKE, i + 2, convertReferenceToken(token)]);
+                parseCtx.extendCommands(operation.index, [[Operations.POKE, i + 2, convertReferenceToken(token)]]);
             }
-            parseCtx.callList.push([Operations.RET]);
+            parseCtx.extendCommands(operation.index, [[Operations.RET]]);
         } else {
-            parseCtx.callList.push([Operations.RET]);
+            parseCtx.extendCommands(operation.index, [[Operations.RET]]);
         }
     } else {
         parseDefault(parseCtx, command);
@@ -598,7 +609,7 @@ function parseIF(parseCtx, command) {
         parseCtx.statusStack.push("else");
         var end_else_label = parseCtx.createJumpLabel("end_else_");
         parseCtx.ifLabelStack.push(end_else_label);
-        parseCtx.callList.extend([
+        parseCtx.extendCommands(operation.index, [
             [Operations.JMP, end_else_label],
         ]);
         parseCtx.jumpTable[end_if_label] = parseCtx.callList.length;
@@ -643,7 +654,7 @@ function parseLOOP(parseCtx, command) {
         var countRefToken = stack_command[2];// カウンタ変数名を取得
         var startLabel = parseCtx.loopLabelStack.pop();
         var endLabel = parseCtx.loopLabelStack.pop();
-        parseCtx.callList.extend([
+        parseCtx.extendCommands(operation.index, [
             [Operations.ADDVARIABLE, convertReferenceToken(countRefToken), 1],
             [Operations.JMP, startLabel],
         ]);
@@ -658,6 +669,7 @@ function parseLOOP(parseCtx, command) {
  * ソースコードの解析
  *
  * @param {string} source - ソースコードテキスト
+ * @returns {ParseContext} - 解析結果の文脈情報
  */
 function parse(source) {
     var tokensList = sourceToTokensList(source);

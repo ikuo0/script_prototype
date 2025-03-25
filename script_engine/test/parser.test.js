@@ -81,5 +81,45 @@ describe('sourceToTokensList', function() {
         assert.equal(tokensList[0][3].type, ParseTokenTypes.FLOAT);
         assert.equal(tokensList[0][4].type, ParseTokenTypes.STRING);
     });
+
+    // pattern3
+    var code = [
+        '; コメントだけの行',
+        'MAIN',
+        '; コメントだけの行',
+        'PRINT "HELLO"; コメント',
+        '; コメントだけの行',
+        'END_MAIN',
+        '; コメントだけの行',
+    ].join("\n");
+    var tokens_list = sourceToTokensList(code);
+    it('コメントだけの行は飛ばされる ... ', function() {
+        assert.deepEqual(tokens_list[0], [new ParseToken("MAIN", ParseTokenTypes.IDENTITY)]);
+        assert.deepEqual(tokens_list[1], [new ParseToken("PRINT", ParseTokenTypes.IDENTITY), new ParseToken("HELLO", ParseTokenTypes.STRING)]);
+        assert.deepEqual(tokens_list[2], [new ParseToken("END_MAIN", ParseTokenTypes.IDENTITY)]);
+    });
+
+    // pattern4
+    var code = [
+        '; コメントだけの行',
+        'MAIN',
+        '; コメントだけの行',
+        'PRINT "HELLO"; コメント',
+        '; コメントだけの行',
+        "DATA a 1",
+        "DATA b 1",
+        "MATH_ADD a a b",
+        'END_MAIN',
+        '; コメントだけの行',
+    ].join("\n");
+    var parseCtx = parse(code)
+    console.log(dumpParseContexts(parseCtx));
+    console.log("### lineNumbers", parseCtx.lineNumbers);
+    it('コマンドリストと行番号インデックスリストが同じ長さになる', function() {
+        // 
+        assert.equal(parseCtx.callList.length, 7);
+        assert.equal(parseCtx.callList.length, parseCtx.lineNumbers.length);
+    });
 });
+
 

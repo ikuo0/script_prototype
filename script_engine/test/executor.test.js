@@ -11,7 +11,7 @@ describe('execute', function() {
         var source = [
             "MAIN",
             "  DATA A 3",
-            "  GREATER FLAG A 2",
+            "  CMP_GREATER FLAG A 2",
             "  IF FLAG",
             "    PRINT \"A is greater than 2\"",
             "  END_IF",
@@ -32,7 +32,7 @@ describe('execute', function() {
         var source = [
             "MAIN",
             "  DATA A 1",
-            "  GREATER FLAG A 2",
+            "  CMP_GREATER FLAG A 2",
             "  IF FLAG",
             "    PRINT \"A is greater than 2\"",
             "  ELSE",
@@ -224,7 +224,7 @@ describe('execute', function() {
         var splitCtx = splitExecuteInit(parseCtx);
         while(splitCtx.processIsEnd == false) {
             var runtimeCtx = splitExecuteMain(splitCtx, 5);
-            console.log("PC=" + runtimeCtx.PC);
+            // console.log("PC=" + runtimeCtx.PC);
         }
         console.log(runtimeCtx);
         console.log("#### ASSERT ####");
