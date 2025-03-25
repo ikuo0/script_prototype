@@ -224,6 +224,10 @@ describe('execute', function() {
         var splitCtx = splitExecuteInit(parseCtx);
         while(splitCtx.processIsEnd == false) {
             var runtimeCtx = splitExecuteMain(splitCtx, 5);
+            // 標準出力
+            if(runtimeCtx.console.hasStdout()) {
+                console.log(runtimeCtx.console.consumeStdout().join("\n"));
+            }
             // console.log("PC=" + runtimeCtx.PC);
         }
         console.log(runtimeCtx);
