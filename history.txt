@@ -27,3 +27,8 @@ node playground/server.js
 
 
 git remote add origin https://github.com/ikuo0/script_prototype.git
+
+# WEBが更新されない時の空push
+git commit --allow-empty -m "Trigger GitHub Pages rebuild"
+git push origin gh-pages
+
