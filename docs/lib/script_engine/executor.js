@@ -21,11 +21,6 @@ function execute(parseCtx) {
         // 実行
         operation(runtimeCtx, runtimeCtx.scopeContextStack.tail(0), args);
 
-        // 標準出力
-        // if(runtimeCtx.console.hasStdout()) {
-        //     console.log(runtimeCtx.console.consumeStdout().join("\n"));
-        // }
-
         if(runtimeCtx.PC != prePC) {
             // PCが変更されている場合はジャンプ命令が実行されたとみなす
             continue;
