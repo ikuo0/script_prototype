@@ -34,9 +34,18 @@ git push origin gh-pages
 
 
 # TeX関係
-sudo apt update
-sudo apt install texlive texlive-lang-japanese texlive-fonts-recommended dvipdfmx
+# sudo apt update
+# sudo apt install texlive texlive-lang-japanese texlive-fonts-recommended dvipdfmx
+# sudo apt install texlive-full
+
 sudo apt install texlive-full
-cd project/
+luaotfload-tool --update
 lualatex manuscript.tex
+
+sudo apt install -y texlive-lang-japanese
+sudo apt install texlive-luatex
+sudo apt install texlive-latex-recommended
+sudo apt install texlive-pictures texlive-latex-extra
+
+lualatex manuscript.tex 
 
