@@ -32,3 +32,11 @@ git remote add origin https://github.com/ikuo0/script_prototype.git
 git commit --allow-empty -m "Trigger GitHub Pages rebuild"
 git push origin gh-pages
 
+
+# TeX関係
+sudo apt update
+sudo apt install texlive texlive-lang-japanese texlive-fonts-recommended dvipdfmx
+sudo apt install texlive-full
+cd project/
+lualatex manuscript.tex
+
