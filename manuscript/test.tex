@@ -1,0 +1,51 @@
+\documentclass{ltjsarticle}
+\usepackage{luatexja} % ltjclasses, ltjsclasses を使うときはこの行不要
+\usepackage{amsmath,amssymb,ascmac,graphicx,here,booktabs}
+\usepackage{bookmark}
+\usepackage{xurl}
+\hypersetup{unicode, bookmarksnumbered=true,final}
+
+\begin{document}
+\section{はじめてのLua\TeX-ja}
+ちゃんと日本語が出るかな？
+
+English appears like this.
+
+\subsection{出たかな？}
+長い文章を入力するとちゃんと右端のところで折り返されるかな？
+大丈夫そうな気がするけど．ちょっと不安だけど何事も挑戦だよね．
+\begin{equation}
+    \label{euler}
+    e^{i\pi} - 1 = 0
+\end{equation}
+
+\eqref{euler}式と下図\ref{test_graph}はまったく無関係である．
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[keepaspectratio, scale=0.5]{./test_graph.png}
+    \caption{$y=\sin x$}
+    \label{test_graph}
+\end{figure}
+
+\begin{table}[H]
+    \centering
+    \caption{表の挿入もこのとおり}
+    \begin{tabular}{ccc}
+        \toprule
+        hoge & hogehoge \\
+        \midrule
+        1 & 2 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+参考文献への参照も無問題．~\cite{text}
+
+\url{http://www.google.co.jp/}
+
+\begin{thebibliography}{9}
+    \bibitem{text} hage ojisan, hogeの由来, hage hage出版.
+\end{thebibliography}
+
+\end{document}

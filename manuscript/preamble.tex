@@ -1,0 +1,37 @@
+% 日本語文書クラス
+\documentclass[lualatex]{bxjsarticle}
+
+% パッケージ
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{tocloft}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{setspace}
+\usepackage[most]{tcolorbox} 
+
+% フォント
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\usepackage{fontspec}
+
+% \setmainfont{Times New Roman}
+% \setjamainfont{IPAexMincho}
+\setmainfont{IPAexMincho}
+
+
+% 余白設定
+\geometry{left=30mm,right=30mm,top=30mm,bottom=30mm}
+
+% フッター設定
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\leftmark\ -\ \thepage}
+
+% 章タイトルを左寄せに
+\titleformat{\chapter}[hang]
+  {\normalfont\Huge\bfseries}{第\thechapter章}{1em}{}
+
+% セクションタイトルも左寄せに
+\titleformat{\section}[hang]
+  {\normalfont\Large\bfseries}{\thesection}{1em}{}
