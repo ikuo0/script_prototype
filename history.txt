@@ -49,3 +49,8 @@ sudo apt install texlive-pictures texlive-latex-extra
 
 lualatex manuscript.tex 
 
+npm install -g @mermaid-js/mermaid-cli
+
+mmdc -i CPUレジスタとメモリ.mmd -o CPUレジスタとメモリ.png
+
+

@@ -118,7 +118,7 @@ function execute() {
     var runtimeCtx = new RuntimeContext();
     while(runtimeCtx.PC < operations_list.length) {
         var operation = operations_list[runtimeCtx.PC];
-        operation[0](runtimeCtx, ...operation.slice(1));
+        operation[0].apply(null, [runtimeCtx].concat(operation.slice(1)));
         runtimeCtx.PC += 1;
     }
 }
