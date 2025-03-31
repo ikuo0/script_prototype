@@ -23,73 +23,73 @@ function Operations(){};
 /**
  * 変数を作る
  * @param {RuntimeContext} runtimeCtx
- * @param {string} arguments[1] 変数名
- * @param {number} arguments[2] 初期値
+ * @param {string} args[0] 変数名
+ * @param {number} args[1] 初期値
  */
-Operations.DATA = function DATA(runtimeCtx) {
-    runtimeCtx.variable[arguments[1]] = arguments[2];
+Operations.DATA = function DATA(runtimeCtx, args) {
+    runtimeCtx.variable[args[0]] = args[1];
 }
 
 /**
  * LHSレジスタに変数から値を読み込む
  * @param {RuntimeContext} runtimeCtx 
- * @param {string} arguments[1] 変数名
+ * @param {string} args[0] 変数名
  */
-Operations.LOADLHS = function LOADLHS(runtimeCtx) {
-    runtimeCtx.LHS = runtimeCtx.variable[arguments[1]];
+Operations.LOADLHS = function LOADLHS(runtimeCtx, args) {
+    runtimeCtx.LHS = runtimeCtx.variable[args[0]];
 }
 
 /**
  * RHSレジスタに値を設定する
  * @param {RuntimeContext} runtimeCtx 
- * @param {string} arguments[1] 変数名
+ * @param {string} args[0] 変数名
  */
-Operations.LOADRHS = function LOADRHS(runtimeCtx) {
-    runtimeCtx.RHS = runtimeCtx.variable[arguments[1]];
+Operations.LOADRHS = function LOADRHS(runtimeCtx, args) {
+    runtimeCtx.RHS = runtimeCtx.variable[args[0]];
 }
 
 /**
  * LHSレジスタの値を変数にコピーする
  * @param {RuntimeContext} runtimeCtx
- * @param {string} arguments[1] 変数名
+ * @param {string} args[0] 変数名
  */
-Operations.STORELHS = function STORELHS(runtimeCtx) {
-    runtimeCtx.variable[arguments[1]] = runtimeCtx.LHS;
+Operations.STORELHS = function STORELHS(runtimeCtx, args) {
+    runtimeCtx.variable[args[0]] = runtimeCtx.LHS;
 }
 
 /**
  * LHSレジスタにRHSレジスタの値を加算し、結果をLHSレジスタに格納する
  * @param {RuntimeContext} runtimeCtx 
  */
-Operations.ADD = function ADD(runtimeCtx) {
+Operations.ADD = function ADD(runtimeCtx, args) {
     runtimeCtx.LHS = runtimeCtx.LHS + runtimeCtx.RHS;
 }
 
 /**
  * レジスタの値を標準出力に出力する
  * @param {RuntimeContext} runtimeCtx 
- * @param {string} arguments[1] レジスタ名
+ * @param {string} args[0] レジスタ名
  */
-Operations.PRINT_REG = function PRINT(runtimeCtx) {
-    console.log(runtimeCtx[arguments[1]]);
+Operations.PRINT_REG = function PRINT_REG(runtimeCtx, args) {
+    console.log(runtimeCtx[args[0]]);
 }
 
 /**
  * 変数の値を標準出力に出力する
  * @param {RuntimeContext} runtimeCtx
- * @param {string} arguments[1] 変数名
+ * @param {string} args[0] 変数名
  */
-Operations.PRINT_VAR = function PRINT(runtimeCtx) {
-    console.log(runtimeCtx.variable[arguments[1]]);
+Operations.PRINT_VAR = function PRINT_VAR(runtimeCtx, args) {
+    console.log(runtimeCtx.variable[args[0]]);
 }
 
 /**
  * 文字列を標準出力に出力する
  * @param {RuntimeContext} runtimeCtx
- * @param {string} arguments[1] 文字列
+ * @param {string} args[0] 文字列
  */
-Operations.PRINT_STR = function PRINT(runtimeCtx) {
-    console.log(arguments[1]);
+Operations.PRINT_STR = function PRINT_STR(runtimeCtx, args) {
+    console.log(args[0]);
 }
 
 function execute() {
@@ -118,7 +118,7 @@ function execute() {
     var runtimeCtx = new RuntimeContext();
     while(runtimeCtx.PC < operations_list.length) {
         var operation = operations_list[runtimeCtx.PC];
-        operation[0].apply(null, [runtimeCtx].concat(operation.slice(1)));
+        operation[0](runtimeCtx, operation.slice(1));
         runtimeCtx.PC += 1;
     }
 }

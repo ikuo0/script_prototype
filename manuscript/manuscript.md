@@ -365,8 +365,9 @@ if、forの分岐やループはプログラムカウンタ（１次元配列の
 
 ### 中間言語を作る
 
-これを今まで学習した概念で擬似スクリプトにすると次のようになります。<br>
-表の１行をメモリ空間のアドレス１つとして捉え行番号＝アドレスだと考えます。
+これを今まで学習した概念で中間言語にすると次のようになります。<br>
+表の１行をメモリ空間のアドレス１つとして捉え行番号＝アドレスだと考えます。<br>
+処理は１行目から開始され、２行目、３行目と１行ずつ逐次実行されていきます。<br>
 
 | 行 | 命令         | 引数1 | 引数2 | 説明                                   |
 |----|--------------|-------|-------|----------------------------------------|
@@ -425,7 +426,7 @@ function execute() {
     var runtimeCtx = new RuntimeContext();
     while(runtimeCtx.PC < operations_list.length) {
         var operation = operations_list[runtimeCtx.PC];
-        operation[0](runtimeCtx, ...operation.slice(1));
+        operation[0](runtimeCtx, operation.slice(1));
         runtimeCtx.PC += 1;
     }
 }
@@ -436,7 +437,8 @@ execute();
 `operations_list` の部分が中間言語であり、冒頭で出てきた `「アセンブラのようなコマンド配列」` とはこれを指しています。<br>
 繰り返しになりますが `「スクリプト言語を作る」` とは文字列を解析して `「アセンブラのようなコマンド配列」（中間言語）` を作ることです。<br>
 このコードを見て「簡単だ」と思った方もいるかと思います、その通りでここだけ見ると非常に簡単です、この辺の仕組みさえ分かってしまえば後は `テキストの解析（おパース処理）` ができてしまえば自作言語作成はできてしまいます。<br>
-そしてその `テキストの解析（おパース処理）` が面倒なのです、著者の感想ですが `「難しい」` というよりかは `「面倒」` です。
+そしてその `テキストの解析（おパース処理）` が面倒なのです、著者の感想ですが `「難しい」` というよりかは `「面倒」` です。<br>
+ソースコードを掲載しますので実際に実行し動作を見てみましょう。
 
 ### プログラム全体
 
@@ -469,73 +471,73 @@ function Operations(){};
 /**
  * 変数を作る
  * @param {RuntimeContext} runtimeCtx
- * @param {string} arguments[1] 変数名
- * @param {number} arguments[2] 初期値
+ * @param {string} args[0] 変数名
+ * @param {number} args[1] 初期値
  */
-Operations.DATA = function DATA(runtimeCtx) {
-    runtimeCtx.variable[arguments[1]] = arguments[2];
+Operations.DATA = function DATA(runtimeCtx, args) {
+    runtimeCtx.variable[args[0]] = args[1];
 }
 
 /**
  * LHSレジスタに変数から値を読み込む
  * @param {RuntimeContext} runtimeCtx 
- * @param {string} arguments[1] 変数名
+ * @param {string} args[0] 変数名
  */
-Operations.LOADLHS = function LOADLHS(runtimeCtx) {
-    runtimeCtx.LHS = runtimeCtx.variable[arguments[1]];
+Operations.LOADLHS = function LOADLHS(runtimeCtx, args) {
+    runtimeCtx.LHS = runtimeCtx.variable[args[0]];
 }
 
 /**
  * RHSレジスタに値を設定する
  * @param {RuntimeContext} runtimeCtx 
- * @param {string} arguments[1] 変数名
+ * @param {string} args[0] 変数名
  */
-Operations.LOADRHS = function LOADRHS(runtimeCtx) {
-    runtimeCtx.RHS = runtimeCtx.variable[arguments[1]];
+Operations.LOADRHS = function LOADRHS(runtimeCtx, args) {
+    runtimeCtx.RHS = runtimeCtx.variable[args[0]];
 }
 
 /**
  * LHSレジスタの値を変数にコピーする
  * @param {RuntimeContext} runtimeCtx
- * @param {string} arguments[1] 変数名
+ * @param {string} args[0] 変数名
  */
-Operations.STORELHS = function STORELHS(runtimeCtx) {
-    runtimeCtx.variable[arguments[1]] = runtimeCtx.LHS;
+Operations.STORELHS = function STORELHS(runtimeCtx, args) {
+    runtimeCtx.variable[args[0]] = runtimeCtx.LHS;
 }
 
 /**
  * LHSレジスタにRHSレジスタの値を加算し、結果をLHSレジスタに格納する
  * @param {RuntimeContext} runtimeCtx 
  */
-Operations.ADD = function ADD(runtimeCtx) {
+Operations.ADD = function ADD(runtimeCtx, args) {
     runtimeCtx.LHS = runtimeCtx.LHS + runtimeCtx.RHS;
 }
 
 /**
  * レジスタの値を標準出力に出力する
  * @param {RuntimeContext} runtimeCtx 
- * @param {string} arguments[1] レジスタ名
+ * @param {string} args[0] レジスタ名
  */
-Operations.PRINT_REG = function PRINT(runtimeCtx) {
-    console.log(runtimeCtx[arguments[1]]);
+Operations.PRINT_REG = function PRINT_REG(runtimeCtx, args) {
+    console.log(runtimeCtx[args[0]]);
 }
 
 /**
  * 変数の値を標準出力に出力する
  * @param {RuntimeContext} runtimeCtx
- * @param {string} arguments[1] 変数名
+ * @param {string} args[0] 変数名
  */
-Operations.PRINT_VAR = function PRINT(runtimeCtx) {
-    console.log(runtimeCtx.variable[arguments[1]]);
+Operations.PRINT_VAR = function PRINT_VAR(runtimeCtx, args) {
+    console.log(runtimeCtx.variable[args[0]]);
 }
 
 /**
  * 文字列を標準出力に出力する
  * @param {RuntimeContext} runtimeCtx
- * @param {string} arguments[1] 文字列
+ * @param {string} args[0] 文字列
  */
-Operations.PRINT_STR = function PRINT(runtimeCtx) {
-    console.log(arguments[1]);
+Operations.PRINT_STR = function PRINT_STR(runtimeCtx, args) {
+    console.log(args[0]);
 }
 
 function execute() {
@@ -564,7 +566,7 @@ function execute() {
     var runtimeCtx = new RuntimeContext();
     while(runtimeCtx.PC < operations_list.length) {
         var operation = operations_list[runtimeCtx.PC];
-        operation[0].apply(null, [runtimeCtx].concat(operation.slice(1)));
+        operation[0](runtimeCtx, operation.slice(1));
         runtimeCtx.PC += 1;
     }
 }
@@ -573,33 +575,299 @@ execute();
 
 ```
 
-# 一旦区切りとします
-ここまでの解説は `中間言語` を作ることが目的であり、中間言語とは何者かを解説してきました。<br>
-実際スクリプト言語を作るにはまだ情報は足りていません。<br>
-スクリプト言語を処理する際に次のような段階を経ます
+# 一旦区切り
+「スクリプト言語を作る」とは「中間言語を変換器を作る」ことで、その目的である `中間言語` についての主要な解説はだいたい終わったと思います。<br>
+ここで分からない箇所がある場合は再度の読み直しやソースコードを自ら作成し機能を追加するなどの工夫をしてみましょう。<br>
 
-> 自作のスクリプト言語 → 解析処理 → 中間言語 -> VMで実行
+> `プログラムカウンタ(PC)＝メモリアドレス、プログラムカウンタと同値のアドレスから命令、データを読み出して処理が実行される`<br>
 
-「スクリプト言語を作る」とは「中間言語を変換器を作る」ことですので、その目的である `中間言語` を理解できれば他の学習コストは低いと考えます<br>
-ですのでここで一旦区切りとし、復習のタイミングとします。<br>
+重要なのはこの仕組みです、もし本書でＰＣの理解に至らないようであれば申し訳ありませんが、検索やＡＩ等を使用し視点を変えてみてください。<br>
+
+
+# 一旦区切り
+「スクリプト言語を作る」とは、「中間言語」への変換器を作ることです。<br>
+その目的となる 中間言語 について、ここまでで基本的な解説はひと通り終えました。<br>
+理解があいまいな部分があれば、再度読み直したりソースコードを書き換えたりして、機能を追加するなどの工夫をしてみてください。<br>
+
+プログラムカウンタの仕組み を理解することが重要です。<br>
+
+> プログラムカウンタ（PC）＝メモリアドレス。プログラムカウンタが指すアドレスから命令やデータを読み出し、処理が実行される。
+
+本書だけでピンと来なかった場合は、検索やAIなどを活用して、別の視点から調べるのも良いと思います。<br>
 
 
 
 # 残りの課題
-- テキスト解析の実装　<- コストが一番高く実装が多岐に渡る箇所
-- if 文などの分岐実装
-- for 文などのループ実装
-- ユーザー定義関数の実装
+プログラムカウンタの仕組みが理解できないと次項以降が理解できません、そのため以下の機能はあえて解説せず後回しとしました。<br>
+以下については後の項で解説していきます。<br>
 
-次の項目からテキストの解析について解説し、そこでまた一旦区切りとします。
+- 分岐処理（if文）
 
-# ソースコード解析
+- ループ処理（for文）
+
+- スタック の仕組み
+
+- ユーザー定義関数
+
+- テキスト解析（← 実装量が多く、開発コストも高い部分です）
 
 
-# スクリプト言語を作るための詳細な技術
-# if 文の実装（分岐の実装）
-# for 文の実装（ループの実装）
-# ユーザー定義関数の実装（サブルーチンの実装）
+# 用語の統一
+
+残りの課題を読む前に、以降の解説で使用する用語を統一します、これまでは実際のCPUと中間言語と中間言語実行のVMと混ざった状態で解説していましたが、この先はスクリプト言語開発が主役であり、CPUやアセンブラの話はほぼ出てきませんので、用語の目的を限定します。
+
+## 中間言語
+
+次のような「命令参照、引数１、引数２、...」という配列の配列を 「**`中間言語`**」 とします。
+
+```javascript
+    var operations_list = [
+        [Operations.DATA, 'A', 1],
+        [Operations.DATA, 'B', 2],
+        [Operations.DATA, 'C', 0],
+        [Operations.LOADLHS, 'A'],
+        [Operations.LOADRHS, 'B'],
+        [Operations.ADD],
+        [Operations.STORELHS, 'C'],
+        [Operations.PRINT_STR, 'C = '],
+        [Operations.PRINT_VAR, 'C'],
+        [Operations.PRINT_STR, 'LHS = '],
+        [Operations.PRINT_REG, 'LHS'],
+        [Operations.PRINT_STR, 'RHS = '],
+        [Operations.PRINT_REG, 'RHS'],
+    ];
+```
+
+## PC
+**`PC`** はプログラムカウンタの事を指し、 **`中間言語`** の文脈で出てきた時は **`中間言語配列のインデックス`** の事を指します。<br>
+次のコードを題材に `PC が 3 の場所～` という文章であれば `[Operations.LOADLHS, 'A'],` の箇所を指しているという意味になります。
+
+```javascript
+    var operations_list = [
+        [Operations.DATA, 'A', 1], // PC = 0
+        [Operations.DATA, 'B', 2], // PC = 1
+        [Operations.DATA, 'C', 0], // PC = 2
+        [Operations.LOADLHS, 'A'], // PC = 3
+        [Operations.LOADRHS, 'B'],
+        [Operations.ADD],
+        [Operations.STORELHS, 'C'],
+        [Operations.PRINT_STR, 'C = '],
+        [Operations.PRINT_VAR, 'C'],
+        [Operations.PRINT_STR, 'LHS = '],
+        [Operations.PRINT_REG, 'LHS'],
+        [Operations.PRINT_STR, 'RHS = '],
+        [Operations.PRINT_REG, 'RHS'],
+    ];
+```
+
+## レジスタ
+以降の文章で出てくる **`レジスタ`** は中間言語、又は中間言語を実行するVMのランタイム変数の事を指します、本当のCPUのレジスタの事ではありません。<br>
+次のコードの `RuntimeContext の 英大文字で宣言された変数のことを指します` 。<br>
+
+``` javascript
+/**
+ * 実行時コンテキスト
+ * @constructor
+ * @property {number} PC プログラムカウンタ
+ * @property {number} LHS 左辺レジスタ
+ * @property {number} RHS 右辺レジスタ
+ * @property {Object.<string, number>} variable 変数
+ */
+function RuntimeContext() {
+    var self = this;
+    self.PC = 0; // レジスタ（PC）
+    self.LHS = 0; // レジスタ（左辺値・回答レジスタ）
+    self.RHS = 0; // レジスタ（右辺値レジスタ）
+    self.variable = {}; // レジスタではない
+}
+```
+
+# 分岐処理（if文）
+
+## プログラムカウンタ(PC)のおさらい
+
+次の中間言語を実行します。
+
+|PC|命令|
+|-|-|
+|0|PRINT "AAA"|
+|1|PRINT "BBB"|
+|2|PRINT "CCC"|
+|3|PRINT "DDD"|
+|4|PRINT "EEE"|
+|5|PRINT "FFF"|
+
+モニタには次のように表示されます。
+
+```
+AAA
+BBB
+CCC
+DDD
+EEE
+FFF
+```
+
+PCは0から実行開始し、命令を実行するたびに１加算され次を実行します。<br>
+- PC=0 の時 PRINT "AAA" が実行されます
+- 実行終了後 PC は 1 加算される
+- PC=1 の時 PRINT "BBB" が実行されます
+- 実行終了後 PC は 1 加算される
+- PC=2 の時...
+
+と実行されます。<br>
+
+
+## PC を変更する命令 JMP を定義する
+PC を指定した値に変更する `JMP` という命令を定義します。<br>
+
+使い方は `JMP [PC の値]` です。<br>
+次の中間言語を実行します。<br>
+
+|PC|命令|処理|
+|-|-|-|
+|0|PRINT "AAA"|"AAA" と表示|
+|1|**`JMP 4`**|PCに4を設定、次は PC=4 の箇所から実行される|
+|2|PRINT "BBB"|実行されず|
+|3|PRINT "CCC"|実行されず|
+|**4**|**PRINT "DDD"**|**PC=2, 3 を飛ばして "DDD" と表示**|
+|5|PRINT "EEE"|"EEE" と表示|
+|6|PRINT "FFF"|"FFF" と表示|
+
+モニタには次のように表示されます。
+
+```
+AAA
+DDD
+EEE
+FFF
+```
+
+- `PRINT "BBB", PRINT "CCC"` の箇所をIF文の真
+- `PRINT "EEE", PRINT "FFF"` の箇所をIF文の偽（ELSE）
+と考えると、分岐（if文）の実装ができそうだなと思いませんか？
+
+## 条件付きでジャンプする命令を定義する
+分岐は中間言語に次の命令を実装することで実装します、PCの値を直接指定する形式だと都合が悪いので、`ラベル名` でジャンプするPCを指定できるようにします。<br>
+ラベル名をPCに置き換える処理はスクリプト解析時、又はVM実行時に行います。
+
+
+|命令名|機能|構文|
+|-|-|-|
+|JZ|LHSレジスタの値が 0 だったら指定ラベル（インデックス）にジャンプ|`JZ end_if`|
+|JNZ|LHSレジスタの値が 1(非0) だったら指定ラベル（インデックス）にジャンプ|`JNZ end_if`|
+
+JZ は Jump Zero の略で、比較結果（演算結果）が 0 だったらジャンプせよという命令です。<br>
+JNZ は Jump Not Zero の略で、比較結果（演算結果）が 0 以外だったらジャンプせよという命令です。<br>
+**分岐（if 文）の実装は基本的に `JZ` を使います。**<br>
+
+## 何故 if分岐に JZ なのか
+
+直感的には JNZ で実装できそうですね。<br>
+JNZは次のように解説しました。<br>
+
+> LHSレジスタの値が 1(非0) だったら指定ラベル（インデックス）にジャンプ
+
+if文の直感的理解は `真であれば分岐せよ` ですから、当然 真（!=0） で分岐する JNZ を分岐に使うように思います。<br>
+しかし、PCの `インクリメントして逐次実行する` というルールを利用して分岐する場合に、偽（=0）で分岐したほうが都合が良いので JZ で分岐を作ります。<br>
+
+## 中間言語作成
+
+次のスクリプトをビルドすることを想定します。
+
+```
+if 5 > 3 {
+  print("a is greater")
+}
+```
+
+ビルド後の中間言語
+
+|インデックス|命令|処理|
+|-|-|-|
+|0|DATA a 5|変数 a に 5 を代入|
+|1|DATA b 3|変数 b に 3 を代入|
+|2|LOADLHS @a|変数 a を LHSレジスタに設定|
+|3|LOADRHS @b|変数 b を RHSレジスタに設定|
+|4|CMP_GREATER|LHSレジスタとRHSレジスタの比較結果をLHSレジスタに格納する|
+|5|JZ end_if|LHSレジスタの値が 0 だったら end_if にジャンプ|
+|6|PRINT "a is greater"|モニタに "a is greater" と表示|
+|7|EXIT|プログラムを終了する|
+
+`CMP_GREATER` は LHSレジスタ ＞ RHSレジスタ の比較結果が真であれば LHSレジスタに 1 を設定、偽であれば LHSレジスタに 0 を設定する命令です。<br>
+
+
+この中間言語は以下のジャンプテーブルを使用します。<br>
+
+``` json
+{
+  "end_if": 7
+}
+```
+
+if文なのに比較結果が FALSE（0）だったら、というジャンプをしているので混乱するかもしれません。<br>
+<br>
+TRUE(非0)だった場合で考えます。<br>
+**PC=5 の位置で LHS=非0 ですから、`JZ end_if` ではなにも起きず、次の PC=6 が実行されモニタには "a is greater" が表示されます。**<br>
+<br>
+FALSE(0)だった場合で考えます。<br>
+**PC=5 の位置で LHS=0 ですから、`JZ end_if` の条件でトリガーされ、`end_if ラベル` の値である 7 を使い PC=7 となり処理はそのまま終了します**<br>
+
+
+## JNZ を使った分岐の中間言語
+
+先ほど同様に次のスクリプトをビルドすることを想定します。<br>
+今回は JZ ではなく JNZ を使って分岐を実装します。
+
+```
+if 5 > 3 {
+  print("a is greater")
+}
+```
+中間言語
+
+| インデックス | 命令                                 | 処理内容                                        |
+|--------------|--------------------------------------|-------------------------------------------------|
+| 0            | DATA a 5                             | 変数 a に 5 を代入                              |
+| 1            | DATA b 3                             | 変数 b に 3 を代入                              |
+| 2            | LOADLHS @a                           | a を LHSレジスタにロード                        |
+| 3            | LOADRHS @b                           | b を RHSレジスタにロード                        |
+| 4            | CMP_GREATER                          | LHS ← (a > b) の結果                            |
+| 5            | JNZ do_print                         | LHS ≠ 0 の場合、do_print へジャンプ            |
+| 6            | JMP end_if                           | 条件が偽なら end_if へスキップ                 |
+| 7            | do_print: PRINT "a is greater"       | 条件成立時に出力                               |
+| 8            | end_if: EXIT                         | プログラム終了                                 |
+
+
+ジャンプテーブル
+
+```
+{
+  "do_print": 7,
+  "end_if": 8
+}
+```
+
+大なり比較の結果が真であった場合 PC=5 の JNZ により do_printラベル（PC=7） にジャンプし、<br>
+大なり比較の結果が偽であった場合 PC=5 の JNZ ではなにも実行されず次の PC=6 の `JMP end_if` が実行され PRINT 命令はスキップされます。
+
+
+JZ で分岐するのは、アセンブラにおいて一般的な手法であるという大前提があります。<br>
+JNZ を使った分岐に比べると、JZ を使った分岐の方が命令数が少なく、ジャンプラベルもひとつ少なくて済みます。<br>
+こうした構造は、コードの複雑さやメモリコストを削減することに繋がります。<br>
+<br>
+これからスクリプト言語を設計しようとする場合、どちらのルールを採用するかは自由に決めることができます。<br>
+もちろん**「実装できればそれで良い」**という考え方もありますが、一般的なアセンブラが JZ による分岐を採用しているという事実を踏まえると、それに倣うほうが自然であり、他の開発者にとっても直感的に理解しやすい設計になるのではないかと思います。<br>
+
+# ループ処理（for文）
+
+# スタック の仕組み
+
+# ユーザー定義関数
+
+# テキスト解析（← 実装量が多く、開発コストも高い部分です）
+
+
 
 
 
