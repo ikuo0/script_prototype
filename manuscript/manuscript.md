@@ -11,7 +11,7 @@
 SQLや KQL / Azure Data Explorer のようなDSL（ドメイン特化言語）の開発であれば仕事で必要に迫られる事もあるのかもしれません。
 
 ## 前提知識
-16進数、if文、for文、関数などといった基本的なプログラムコードの概念を理解している程度の知識を必要とします、完全な初心者向けではありません。
+16進数、if文、for文、関数などといった基本的なプログラムコードの概念が理解できる程度の知識を必要とします、完全な初心者向けではありません。
 
 ## 本書の構成
 CPU、メモリの仕組みを簡単に説明し、その後は擬似アセンブラの解説に大半を割くことになります。<br>
@@ -143,12 +143,12 @@ CPU と 1KB のメモリがあることを想像してください
 
 |アドレス|実行内容|
 |-|-|
-|0x0000| を読み出したCPUは PRINT "Hello" を実行します、実行|
+|0x0000| を読み出したCPUは PRINT "Hello" を実行します|
 |0x0001| を読み出したCPUは PRINT " World" を実行します|
 |0x0002| を読み出したCPUは PRINT "!" を実行します|
 |0x0003| を読み出したCPUは JMP 0x0000 を実行、PC に 0x0000 が設定される|
 |...| PC が変更されたためアドレス加算ではなく 0x0000 にジャンプする|
-|**0x0000**| を読み出したCPUは PRINT "Hello" を実行します、実行|
+|**0x0000**| を読み出したCPUは PRINT "Hello" を実行します|
 |0x0001| を読み出したCPUは PRINT " World" を実行します|
 |0x0002| を読み出したCPUは PRINT "!" を実行します|
 |0x0003| を読み出したCPUは JMP 0x0000 を実行、PC に 0x0000 が設定される|
@@ -173,7 +173,7 @@ Hello World!Hello World!Hello World!Hello World!Hello World!...
 CPU にはレジスタという一時的な記憶領域があり、これはPICやマイコンと呼ばれる物も含めて全てのCPUが持つ記憶領域です。
 
 ## レジスタの使い方
-CPU はレジスタ同士の演算しかできません、そこでメモリに配置した数字をレジスタにコピーし、結果をメモリ上にコピーするという手順になります。<br>
+CPU はレジスタ同士の演算しかできません、そこでメモリに配置した数値をレジスタにコピーし、結果をメモリ上にコピーするという手順になります。<br>
 ※一部CPUでは メモリ⇔レジスタ の計算が可能です。
 
 
@@ -197,6 +197,9 @@ answer = 1 + 2
 ### アセンブラで足し算する手順
 以下の疑似アセンブラで足し算の例を実装します。<br>
 この世界では `LHS, RHS というレジスタが存在する` ことにします。<br>
+それぞれ次のような意味です。
+- LHS = 左辺値という意味で a + b の a を指します、Left Hand Side の略です
+- RHS = 右辺値という意味で a + b の b を指します、Right Hand Side の略です
 
 ```
 ; 疑似アセンブラ
@@ -217,7 +220,7 @@ END; プログラムを終了する
 `'ADD' は LHSレジスタ と RHSレジスタ を加算した値を LHSレジスタに設定する命令`
 
 とします。<br>
-これらの条件で「疑似アセンブラ」を実行すると最終的に LHSレジスタに 3 が格納され足し算を完了します。
+これらの条件で「疑似アセンブラ」を実行すると最終的に LHSレジスタに 3 が格納され足し算を完了します。<br>
 
 このアセンブラをコンパイルしメモリに展開するとおおむね下記のようなメモリ配置になります。
 
@@ -236,6 +239,32 @@ END; プログラムを終了する
 `DATA a 1` という命令は 0x0100 に 1 を配置し、コード内の a というシンボルは全てアドレスの 0x0100 参照に変換されます。<br>
 `DATA b 2` という命令は 0x0101 に 2 を配置し、コード内の b というシンボルは全てアドレスの 0x0101 参照に変換されます。<br>
 answer も同様に処理され answer というシンボルで 0x0102 に参照できるようになります。
+
+### 回答専用レジスタを準備しない理由
+
+回答を ANS(Answer)レジスタとせず LHSレジスタにしている理由はｎ項の演算が続く場合を想定した仕様です、 `a + b + c` とする時に ANSレジスタを実装した場合のコードです。<br>
+
+``` text
+MOV %LHS @a; LHS レジスタに a の値をコピー
+MOV %RHS @b; RHS レジスタに b の値をコピー
+ADD; ANS に a + b の結果が設定される
+STOREANS tmp; 変数 tmp に ANS レジスタの値をコピー
+MOV %LHS @tmp; LHS レジスタに tmp の値をコピー
+MOV %RHS @c; RHS レジスタに c の値をコピー
+ADD; ANS に (a + b) + c の結果が設定される
+```
+
+次に答えを LHSレジスタに設定する場合のコードです。<br>
+
+``` text
+MOV %LHS @a; LHS レジスタに a の値をコピー
+MOV %RHS @b; RHS レジスタに b の値をコピー
+ADD; LHS に a + b の結果が設定される
+MOV %RHS @c; RHS レジスタに c の値をコピー
+ADD; LHS に (a + b) + c の結果が設定される
+```
+
+このように演算を行うステップ数が減ります、そのため回答ようレジスタ（ANS）を用意せず、LHSを上書きする形で計算結果を保存しています。
 
 ### 実際のアドレスとPCと命令の関係
 「疑似アセンブラ」であると断りをいれていますが、誤ったアセンブラ知識にならないよう注釈です。<br>
@@ -260,7 +289,7 @@ CPU設計をシンプルに保つため、動作クロック（処理時間）�
 ## スクリプトでレジスタ概念を再現する理由
 レジスタについて解説してきましたが、これから実装するスクリプト言語は `レジスタ概念を再現して実装しています` 。<br>
 スクリプト言語の実行にレジスタ概念を持ち込む理由は `汎用的なインターフェースのほうが実装が楽だから` です。<br>
-好きなように変数を行き来して好きなように計算式を書けると便利ではあるのですが、機能・インターフェースを統一することで構文解析時に一定の法則さえ守っていれば間違いも起きづらく作りやすいという理由があります。
+好きなように変数を行き来して好きなように計算式を書けると便利ではあるのですが、機能・インターフェースを統一することで構文解析時に間違いが起きづらく作りやすいという理由があります。
 
 
 # ここまでの内容で動作するコードを作ってみる
@@ -276,7 +305,7 @@ if、forの分岐やループはプログラムカウンタ（１次元配列の
 `スタック` というとても重要な概念もあるのですが、それは後の項で解説します。
 
 ## 中間言語を作る
-今まで解説した材料で実際に動作する実行可能な命令配列を作ってみます、実際のスクリプト言語からの変換は処理が重たくソースコードが長くなるため、配列に直接命令や引数を配置する手法で作っていきます。<br>
+今まで解説した材料で実際に動作する実行可能な中間言語を作ってみます、実際のスクリプト言語からの変換は処理が重たくソースコードが長くなるため、配列に直接命令や引数を配置する手法で作っていきます。<br>
 
 次のスクリプトを想定し、その中間言語を実行するプログラムを実装します。
 
@@ -288,7 +317,7 @@ if、forの分岐やループはプログラムカウンタ（１次元配列の
     PRINT C; 計算結果を出力
 ```
 
-このようなスクリプト言語を想定し中間言語を実装していきます、`VAR A = 1` でない理由ですが `テキスト解析処理が楽だから` です、＝ や ＋ 演算子の処理は結構手間がかかりますが、このような言語形態だと `source_code.split(/\s+/)` で解析できるため非常に楽です。<br>
+このようなスクリプト言語を想定し中間言語を実装していきます、`VAR A = 1` のほうが分かりやすいのに `VAR A 1` として演算子を省く理由ですが `テキスト解析処理が楽だから` です、＝ や ＋ 演算子の処理は結構手間がかかりますが、半角空白区切りで表現する言語形態だと `source_code.split(/\s+/)` で解析できるため非常に楽です。<br>
 最小限のコード量でわかりやすく解説したいので解析コストの低いスクリプトフォーマットにしています。<br>
 
 ### 中間言語に必要な命令を考える
@@ -305,8 +334,8 @@ if、forの分岐やループはプログラムカウンタ（１次元配列の
 見えていない部分も考えます
 
 - 足し算機能とは？
-  - レジスタの値で足し算すれば良い
-    - レジスタに数値を変数からコピーする命令が必要
+  - レジスタ同士で足し算すれば良い
+    - レジスタに変数から数値をコピーする命令が必要
 - 計算結果をどう扱うか
   - レジスタの値を変数にコピーする命令が必要
 - 出力をどう考えるか
@@ -318,12 +347,14 @@ if、forの分岐やループはプログラムカウンタ（１次元配列の
 
 ### 中間言語の具体的な命令仕様を考える
 
+前項より次の命令仕様を考えます。<br>
+
 - VAR A 1; 変数 A を宣言し 1 を設定する
   - 数字をシンボルに保存、いわゆる `変数` の概念が必要
     - `DATA a 1` = シンボル a に 1 を設定し、 a で参照できるようにする
 - MATH_ADD C A B; 変数 C に A + B の結果を設定する
   - 足し算する機能が必要
-    - `MATH_ADD C A B` = A + B の結果を C に設定する
+    - `ADD` レジスタ間の足し算の結果をレジスタに設定する
 - PRINT C; 計算結果を出力
   - 変数やレジスタの内容を確認する手段が必要
     - `PRINT_STR "文字列"` = 引数の文字列を出力する
@@ -576,20 +607,11 @@ execute();
 ```
 
 # 一旦区切り
-「スクリプト言語を作る」とは「中間言語を変換器を作る」ことで、その目的である `中間言語` についての主要な解説はだいたい終わったと思います。<br>
-ここで分からない箇所がある場合は再度の読み直しやソースコードを自ら作成し機能を追加するなどの工夫をしてみましょう。<br>
-
-> `プログラムカウンタ(PC)＝メモリアドレス、プログラムカウンタと同値のアドレスから命令、データを読み出して処理が実行される`<br>
-
-重要なのはこの仕組みです、もし本書でＰＣの理解に至らないようであれば申し訳ありませんが、検索やＡＩ等を使用し視点を変えてみてください。<br>
-
-
-# 一旦区切り
 「スクリプト言語を作る」とは、「中間言語」への変換器を作ることです。<br>
 その目的となる 中間言語 について、ここまでで基本的な解説はひと通り終えました。<br>
 理解があいまいな部分があれば、再度読み直したりソースコードを書き換えたりして、機能を追加するなどの工夫をしてみてください。<br>
 
-プログラムカウンタの仕組み を理解することが重要です。<br>
+この先の内容を理解するためには `プログラムカウンタの仕組み` を理解することが重要です。<br>
 
 > プログラムカウンタ（PC）＝メモリアドレス。プログラムカウンタが指すアドレスから命令やデータを読み出し、処理が実行される。
 
@@ -789,12 +811,12 @@ if 5 > 3 {
 |1|DATA b 3|変数 b に 3 を代入|
 |2|LOADLHS @a|変数 a を LHSレジスタに設定|
 |3|LOADRHS @b|変数 b を RHSレジスタに設定|
-|4|CMP_GREATER|LHSレジスタとRHSレジスタの比較結果をLHSレジスタに格納する|
+|4|GT|LHSレジスタとRHSレジスタの比較結果をLHSレジスタに格納する|
 |5|JZ end_if|LHSレジスタの値が 0 だったら end_if にジャンプ|
 |6|PRINT "a is greater"|モニタに "a is greater" と表示|
 |7|EXIT|プログラムを終了する|
 
-`CMP_GREATER` は LHSレジスタ ＞ RHSレジスタ の比較結果が真であれば LHSレジスタに 1 を設定、偽であれば LHSレジスタに 0 を設定する命令です。<br>
+`GT` は LHSレジスタ ＞ RHSレジスタ の比較結果が真であれば LHSレジスタに 1 を設定、偽であれば LHSレジスタに 0 を設定する命令です。<br>
 
 
 この中間言語は以下のジャンプテーブルを使用します。<br>
@@ -811,7 +833,9 @@ TRUE(非0)だった場合で考えます。<br>
 **PC=5 の位置で LHS=非0 ですから、`JZ end_if` ではなにも起きず、次の PC=6 が実行されモニタには "a is greater" が表示されます。**<br>
 <br>
 FALSE(0)だった場合で考えます。<br>
-**PC=5 の位置で LHS=0 ですから、`JZ end_if` の条件でトリガーされ、`end_if ラベル` の値である 7 を使い PC=7 となり処理はそのまま終了します**<br>
+**PC=5 の位置で LHS=0 ですから、`JZ end_if` の条件でトリガーされ、`end_if ラベル` の値である 7 を使い PC=7 となり PC=6 はスキップされ処理はそのまま終了します**<br>
+
+という動作をしますので想定通り if true による分岐が実装できます。<br>
 
 
 ## JNZ を使った分岐の中間言語
@@ -857,7 +881,233 @@ JNZ を使った分岐に比べると、JZ を使った分岐の方が命令数�
 こうした構造は、コードの複雑さやメモリコストを削減することに繋がります。<br>
 <br>
 これからスクリプト言語を設計しようとする場合、どちらのルールを採用するかは自由に決めることができます。<br>
-もちろん**「実装できればそれで良い」**という考え方もありますが、一般的なアセンブラが JZ による分岐を採用しているという事実を踏まえると、それに倣うほうが自然であり、他の開発者にとっても直感的に理解しやすい設計になるのではないかと思います。<br>
+もちろん **「実装できればそれで良い」** という考え方もありますが、一般的なアセンブラが JZ による分岐を採用しているという事実を踏まえると、それに倣うほうが自然であり、他の開発者にとっても直感的に理解しやすい設計になるのではないかと思います。<br>
+
+## if分岐の実装
+
+中間言語部分の抜粋です。<br>
+新たに `GT` 命令、 `JZ` 命令が追加されています。<br>
+
+|命令名|機能|構文|
+|-|-|-|
+|JZ|LHSレジスタの値が 0 だったら指定ラベル（インデックス）にジャンプ|`JZ end_if`|
+|GT|LHSレジスタとRHSレジスタを比較しLHSレジスタが大きければLHSレジスタに1を設定、それ以外は0を設定する|`GT` ※事前にLHS、RHSを設定する|
+
+``` javascript
+function execute() {
+    /*
+        VAR A = 1
+        VAR B = 0
+        if (A > B) {
+            print("A is zero");
+        }
+    */
+    var operations_list = [
+        [Operations.PRINT_STR, "START"],          // 0: print("START")
+        [Operations.DATA, "A", 1],                // 1: A = 1
+        [Operations.DATA, "B", 0],                // 2: B = 0
+        [Operations.LOADLHS, "A"],                // 3: LHS ← A
+        [Operations.LOADRHS, "B"],                // 4: RHS ← B
+        [Operations.GT],                          // 5: if (LHS > RHS) LHS = 1 else LHS = 0
+        [Operations.JZ, "end_if"],                // 6: if LHS == 0, jump to end_if
+        [Operations.PRINT_STR, "A is greater B"], // 7: print("A is greater 0")
+        [Operations.PRINT_STR, "END"],            // 8: print("END")
+        [Operations.EXIT],                        // 9: EXIT:
+    ];
+    
+
+    // ジャンプテーブルを設定する
+    var jumpTable = {
+        "end_if": 8,
+    }
+    var runtimeCtx = new RuntimeContext(jumpTable);
+    while(runtimeCtx.PC < operations_list.length) {
+        var operation = operations_list[runtimeCtx.PC];
+        var prePC = runtimeCtx.PC;
+        operation[0](runtimeCtx, operation.slice(1));
+        if(runtimeCtx.PC !== prePC) {
+            // PC が変更された場合はPCの加算をスキップする
+        } else {
+            runtimeCtx.PC += 1;
+        }
+    }
+}
+```
+
+### ソースコード全体
+if分岐のソースコード全体です。<br>
+
+``` javascript
+
+/**
+ * 実行時コンテキスト
+ * @constructor
+ * @property {number} PC プログラムカウンタ
+ * @property {number} LHS 左辺レジスタ
+ * @property {number} RHS 右辺レジスタ
+ * @property {Object.<string, number>} variable 変数
+ * @property {Object.<string, number>} jumpTable ジャンプテーブル
+ */
+function RuntimeContext(jumpTable) {
+    var self = this;
+    self.PC = 0;
+    self.LHS = 0;
+    self.RHS = 0;
+    self.variable = {};
+    self.jumpTable = jumpTable;
+}
+
+/**
+ * 命令クラス
+ */
+function Operations(){};
+
+/**
+ * 変数を作る
+ * @param {RuntimeContext} runtimeCtx
+ * @param {string} args[0] 変数名
+ * @param {number} args[1] 初期値
+ */
+Operations.DATA = function DATA(runtimeCtx, args) {
+    runtimeCtx.variable[args[0]] = args[1];
+}
+
+/**
+ * LHSレジスタに変数から値を読み込む
+ * @param {RuntimeContext} runtimeCtx 
+ * @param {string} args[0] 変数名
+ */
+Operations.LOADLHS = function LOADLHS(runtimeCtx, args) {
+    runtimeCtx.LHS = runtimeCtx.variable[args[0]];
+}
+
+/**
+ * RHSレジスタに値を設定する
+ * @param {RuntimeContext} runtimeCtx 
+ * @param {string} args[0] 変数名
+ */
+Operations.LOADRHS = function LOADRHS(runtimeCtx, args) {
+    runtimeCtx.RHS = runtimeCtx.variable[args[0]];
+}
+
+/**
+ * LHSレジスタの値を変数にコピーする
+ * @param {RuntimeContext} runtimeCtx
+ * @param {string} args[0] 変数名
+ */
+Operations.STORELHS = function STORELHS(runtimeCtx, args) {
+    runtimeCtx.variable[args[0]] = runtimeCtx.LHS;
+}
+
+/**
+ * LHSレジスタにRHSレジスタの値を加算し、結果をLHSレジスタに格納する
+ * @param {RuntimeContext} runtimeCtx 
+ */
+Operations.ADD = function ADD(runtimeCtx, args) {
+    runtimeCtx.LHS = runtimeCtx.LHS + runtimeCtx.RHS;
+}
+
+/**
+ * レジスタの値を標準出力に出力する
+ * @param {RuntimeContext} runtimeCtx 
+ * @param {string} args[0] レジスタ名
+ */
+Operations.PRINT_REG = function PRINT_REG(runtimeCtx, args) {
+    console.log(runtimeCtx[args[0]]);
+}
+
+/**
+ * 変数の値を標準出力に出力する
+ * @param {RuntimeContext} runtimeCtx
+ * @param {string} args[0] 変数名
+ */
+Operations.PRINT_VAR = function PRINT_VAR(runtimeCtx, args) {
+    console.log(runtimeCtx.variable[args[0]]);
+}
+
+/**
+ * 文字列を標準出力に出力する
+ * @param {RuntimeContext} runtimeCtx
+ * @param {string} args[0] 文字列
+ */
+Operations.PRINT_STR = function PRINT_STR(runtimeCtx, args) {
+    console.log(args[0]);
+}
+
+/**
+ * LHS と RHS を比較して、LHSのほうが大きい場合にLHSに1を設定する
+ * 事前に LHS と RHS に値を設定しておく必要がある
+ * @param {RuntimeContext} runtimeCtx
+ */
+Operations.GT = function GT(runtimeCtx, args) {
+    if (runtimeCtx.LHS > runtimeCtx.RHS) {
+        runtimeCtx.LHS = 1;
+    } else {
+        runtimeCtx.LHS = 0;
+    }
+}
+
+/**
+ * LHS の値が 0 だったら指定したラベルにジャンプする
+ * @param {RuntimeContext} runtimeCtx
+ * @param {string} args[0] ラベル名
+ */
+Operations.JZ = function JZ(runtimeCtx, args) {
+    if (runtimeCtx.LHS === 0) {
+        runtimeCtx.PC = runtimeCtx.jumpTable[args[0]];
+    }
+}
+
+/**
+ * 終了命令
+ * @param {RuntimeContext} runtimeCtx
+ */
+Operations.EXIT = function EXIT(runtimeCtx, args) {
+    // NOP
+}
+
+function execute() {
+    /*
+        VAR A = 1
+        VAR B = 0
+        if (A > B) {
+            print("A is zero");
+        }
+    */
+    var operations_list = [
+        [Operations.PRINT_STR, "START"],          // 0: print("START")
+        [Operations.DATA, "A", 1],                // 1: A = 1
+        [Operations.DATA, "B", 0],                // 2: B = 0
+        [Operations.LOADLHS, "A"],                // 3: LHS ← A
+        [Operations.LOADRHS, "B"],                // 4: RHS ← B
+        [Operations.GT],                          // 5: if (LHS > RHS) LHS = 1 else LHS = 0
+        [Operations.JZ, "end_if"],                // 6: if LHS == 0, jump to end_if
+        [Operations.PRINT_STR, "A is greater B"], // 7: print("A is greater B")
+        [Operations.PRINT_STR, "END"],            // 8: print("END")
+        [Operations.EXIT],                        // 9: EXIT:
+    ];
+    
+
+    // ジャンプテーブルを設定する
+    var jumpTable = {
+        "end_if": 8,
+    }
+    var runtimeCtx = new RuntimeContext(jumpTable);
+    while(runtimeCtx.PC < operations_list.length) {
+        var operation = operations_list[runtimeCtx.PC];
+        var prePC = runtimeCtx.PC;
+        operation[0](runtimeCtx, operation.slice(1));
+        if(runtimeCtx.PC !== prePC) {
+            // PC が変更された場合はPCの加算をスキップする
+        } else {
+            runtimeCtx.PC += 1;
+        }
+    }
+}
+
+execute();
+
+```
 
 # ループ処理（for文）
 
