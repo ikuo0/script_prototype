@@ -51,6 +51,6 @@ lualatex manuscript.tex
 
 npm install -g @mermaid-js/mermaid-cli
 
-mmdc -i CPUレジスタとメモリ.mmd -o CPUレジスタとメモリ.png
+mmdc -i manuscript/figure/CPUレジスタとメモリ.mmd -o manuscript/figure/CPUレジスタとメモリ.png
 
 
