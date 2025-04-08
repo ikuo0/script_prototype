@@ -502,7 +502,7 @@ execute();
     }
 ```
 
-関数参照の配列を一つずつ実行していくだけのループ処理となっています。<br>
+中間言語の配列を一つずつ実行していくループ処理となっています。<br>
 
 ### プログラム全体
 
@@ -1226,11 +1226,42 @@ if分岐の実装ができました。
 |GE|LHSレジスタとRHSレジスタを比較してLHSレジスタがRHSレジスタと等しいか大きければLHSに1を設定する|`GE` ※事前にLHS、RHSを設定する|
 |JMP|指定したラベルにジャンプする|`JMP end_loop`|
 
+## ループの中間言語
 
+ループの中間言語 を次のように実装します。<br>
 
-## for文 ループの中間言語
+| インデックス | コード（Operations省略）       | 解説 |
+|-------------|------------------------------|------|
+| 0           | `DATA, "i", 0`               | 変数 `i` に 0 を代入（ループカウンタの初期化） |
+| 1           | `DATA, "_limit", 10`         | 変数 `_limit` に 10 を代入（ループ終了条件） |
+| 2           | `DATA, "_inc", 1`            | 変数 `_inc` に 1 を代入（カウントアップ用） |
+| 3           | `LOADLHS, "i"`               | 左辺（LHS）に `i` の値を読み込む |
+| 4           | `LOADRHS, "_limit"`          | 右辺（RHS）に `_limit` の値を読み込む |
+| 5           | `GE`                         | `LHS = (i >= _limit) ? 1 : 0` に変換 |
+| 6           | `JZ, "loop_body"`            | LHS が 0（条件未達）なら `"loop_body"` にジャンプ（ループ継続） |
+| 7           | `JMP, "loop_end"`            | そうでなければ `"loop_end"` にジャンプ（ループ終了） |
+| 8           | `PRINT_VAR, "i"`             | 現在の `i` の値を出力 |
+| 9           | `LOADLHS, "i"`               | 左辺に `i` の値を再度読み込む |
+| 10          | `LOADRHS, "_inc"`            | 右辺に `_inc` の値を読み込む（= 1） |
+| 11          | `ADD`                        | `LHS = i + 1` に変換（インクリメント） |
+| 12          | `STORELHS, "i"`              | `i = LHS` → `i` を更新 |
+| 13          | `JMP, "loop_start"`          | ループ先頭（インデックス3）に戻る |
+| 14          | `PRINT_STR, "LOOP DONE"`     | `"LOOP DONE"` という文字列を出力 |
+| 15          | `EXIT`                       | プログラム終了 |
 
-ループの中間言語は次のようになります。
+ジャンプするPCの値については次のテーブルで管理します。<br>
+
+``` javascript
+    var jumpTable = {
+        "loop_start": 3,
+        "loop_body": 8,
+        "loop_end": 14,
+    }
+```
+
+### 実際の実装（主要部のみ）
+
+実装の中間言語部分だけを記載します、次のようになります。<br>
 
 ``` javascript
 function execute() {
@@ -1283,8 +1314,279 @@ function execute() {
 }
 ```
 
+### ソースコード全体
 
-# スタック の仕組み
+ループのソースコード全体です・<br>
+
+``` javascript
+
+/**
+ * 実行時コンテキスト
+ * @constructor
+ * @property {number} PC プログラムカウンタ
+ * @property {number} LHS 左辺レジスタ
+ * @property {number} RHS 右辺レジスタ
+ * @property {Object.<string, number>} variable 変数
+ * @property {Object.<string, number>} jumpTable ジャンプテーブル
+ */
+function RuntimeContext(jumpTable) {
+    var self = this;
+    self.PC = 0;
+    self.LHS = 0;
+    self.RHS = 0;
+    self.variable = {};
+    self.jumpTable = jumpTable;
+}
+
+/**
+ * 命令クラス
+ */
+function Operations(){};
+
+/**
+ * 変数を作る
+ * @param {RuntimeContext} runtimeCtx
+ * @param {string} args[0] 変数名
+ * @param {number} args[1] 初期値
+ */
+Operations.DATA = function DATA(runtimeCtx, args) {
+    runtimeCtx.variable[args[0]] = args[1];
+}
+
+/**
+ * LHSレジスタに変数から値を読み込む
+ * @param {RuntimeContext} runtimeCtx 
+ * @param {string} args[0] 変数名
+ */
+Operations.LOADLHS = function LOADLHS(runtimeCtx, args) {
+    runtimeCtx.LHS = runtimeCtx.variable[args[0]];
+}
+
+/**
+ * RHSレジスタに値を設定する
+ * @param {RuntimeContext} runtimeCtx 
+ * @param {string} args[0] 変数名
+ */
+Operations.LOADRHS = function LOADRHS(runtimeCtx, args) {
+    runtimeCtx.RHS = runtimeCtx.variable[args[0]];
+}
+
+/**
+ * LHSレジスタの値を変数にコピーする
+ * @param {RuntimeContext} runtimeCtx
+ * @param {string} args[0] 変数名
+ */
+Operations.STORELHS = function STORELHS(runtimeCtx, args) {
+    runtimeCtx.variable[args[0]] = runtimeCtx.LHS;
+}
+
+/**
+ * LHSレジスタにRHSレジスタの値を加算し、結果をLHSレジスタに格納する
+ * @param {RuntimeContext} runtimeCtx 
+ */
+Operations.ADD = function ADD(runtimeCtx, args) {
+    runtimeCtx.LHS = runtimeCtx.LHS + runtimeCtx.RHS;
+}
+
+/**
+ * レジスタの値を標準出力に出力する
+ * @param {RuntimeContext} runtimeCtx 
+ * @param {string} args[0] レジスタ名
+ */
+Operations.PRINT_REG = function PRINT_REG(runtimeCtx, args) {
+    console.log(runtimeCtx[args[0]]);
+}
+
+/**
+ * 変数の値を標準出力に出力する
+ * @param {RuntimeContext} runtimeCtx
+ * @param {string} args[0] 変数名
+ */
+Operations.PRINT_VAR = function PRINT_VAR(runtimeCtx, args) {
+    console.log(runtimeCtx.variable[args[0]]);
+}
+
+/**
+ * 文字列を標準出力に出力する
+ * @param {RuntimeContext} runtimeCtx
+ * @param {string} args[0] 文字列
+ */
+Operations.PRINT_STR = function PRINT_STR(runtimeCtx, args) {
+    console.log(args[0]);
+}
+
+/**
+ * LHS と RHS を比較して、LHSのほうが大きい場合にLHSに1を設定する
+ * 事前に LHS と RHS に値を設定しておく必要がある
+ * @param {RuntimeContext} runtimeCtx
+ */
+Operations.GT = function GT(runtimeCtx, args) {
+    if (runtimeCtx.LHS > runtimeCtx.RHS) {
+        runtimeCtx.LHS = 1;
+    } else {
+        runtimeCtx.LHS = 0;
+    }
+}
+
+/**
+ * LHS と RHS を比較して、LHSのほうが大きいか等しい場合にLHSに1を設定する
+ * 事前に LHS と RHS に値を設定しておく必要がある
+ * @param {RuntimeContext} runtimeCtx
+ */
+Operations.GE = function GE(runtimeCtx, args) {
+    if (runtimeCtx.LHS >= runtimeCtx.RHS) {
+        runtimeCtx.LHS = 1;
+    } else {
+        runtimeCtx.LHS = 0;
+    }
+}
+
+/**
+ * 指定したラベルにジャンプする
+ * @param {RuntimeContext} runtimeCtx
+ * @param {string} args[0] ラベル名
+ */
+Operations.JMP = function JMP(runtimeCtx, args) {
+    runtimeCtx.PC = runtimeCtx.jumpTable[args[0]];
+}
+/**
+ * LHS の値が 0 だったら指定したラベルにジャンプする
+ * @param {RuntimeContext} runtimeCtx
+ * @param {string} args[0] ラベル名
+ */
+Operations.JZ = function JZ(runtimeCtx, args) {
+    if (runtimeCtx.LHS === 0) {
+        runtimeCtx.PC = runtimeCtx.jumpTable[args[0]];
+    }
+}
+
+/**
+ * 終了命令
+ * @param {RuntimeContext} runtimeCtx
+ */
+Operations.EXIT = function EXIT(runtimeCtx, args) {
+    // NOP
+}
+
+function execute() {
+    /*
+        int i = 0;
+        while (i < 10) {
+            print(i);
+            i = i + 1;
+        }
+    */
+        var operations_list = [
+            [Operations.DATA, "i", 0],           // 0: i = 0
+            [Operations.DATA, "_limit", 10],     // 1: _limit = 10
+            [Operations.DATA, "_inc", 1],        // 2: _inc = 1
+            // loop_start                        // ラベル: ループ開始
+            [Operations.LOADLHS, "i"],           // 3: LHS ← i
+            [Operations.LOADRHS, "_limit"],      // 4: RHS ← _limit
+            [Operations.GE],                     // 5: LHS = (i >= 10) ? 1 : 0
+            [Operations.JZ, "loop_body"],        // 6: if LHS == 0 → ループ続行
+            [Operations.JMP, "loop_end"],        // 7: 条件を満たさなければループ終了
+            // loop_body                         // ラベル: ループ本体
+            [Operations.PRINT_VAR, "i"],         // 8: print(i)
+            [Operations.LOADLHS, "i"],           // 9: LHS ← i
+            [Operations.LOADRHS, "_inc"],        // 10: RHS ← 1
+            [Operations.ADD],                    // 11: LHS = i + 1
+            [Operations.STORELHS, "i"],          // 12: i = LHS
+            [Operations.JMP, "loop_start"],      // 13: ループ先頭へ戻る
+            // loop_end                          // ラベル: ループ終了
+            [Operations.PRINT_STR, "LOOP DONE"], // 14: print("LOOP DONE")
+            [Operations.EXIT],                   // 15: プログラム終了
+        ];
+
+    // ジャンプテーブルを設定する
+    var jumpTable = {
+        "loop_start": 3,
+        "loop_body": 8,
+        "loop_end": 14,
+    }
+    var runtimeCtx = new RuntimeContext(jumpTable);
+    while(runtimeCtx.PC < operations_list.length) {
+        var operation = operations_list[runtimeCtx.PC];
+        var prePC = runtimeCtx.PC;
+        operation[0](runtimeCtx, operation.slice(1));
+        if(runtimeCtx.PC !== prePC) {
+            // PC が変更された場合はPCの加算をスキップする
+        } else {
+            runtimeCtx.PC += 1;
+        }
+    }
+}
+
+execute();
+
+```
+
+
+# だいぶプログラムぽくなってきた
+今までの解説内容で `演算` `分岐` `ループ` ができるようになりました。<br>
+だいぶプログラムぽくなってきたのではないでしょうか？<br>
+後は `関数` 又は `サブルーチン` という機能を部品化する概念を作ったら完璧なプログラミング言語ができそうです。<br>
+`関数` 又は `サブルーチン` を本書では **`ユーザー定義関数`** と呼ぶことにします。<br>
+
+
+# スタックと関数呼び出し
+
+ユーザー定義関数を作成するためにスタックの仕組みを知っている必要があります。<br>
+しつこようですがPCについて復習です<br>
+１次元のメモリ上を PC の値がインクリメントされる事によりプログラムは実行されています。<br>
+`ユーザー定義関数` もそのルールの中で実装していくことになります。<br>
+
+## 疑似アセンブラによるユーザー定義関数の実装（未完成）
+次の擬似アセンブラを思考実験として実行してみてください。<br>
+スタックの仕組みを知るためにわざと完成形ではない疑似アセンブラ実装をしています。<br>
+
+```
+:funcA
+PRINT "A"
+POP W; スタックから取り出した値を W レジスタに代入
+JMP W; W の値を PC に設定（W の指す位置にジャンプ）
+
+:funcB
+PUSH PC + 2; JMP の次のPCをスタックに保存
+JMP funcA
+PRINT "B"
+POP W; スタックから取り出した値を W レジスタに代入
+JMP W; W の値を PC に設定（W の指す位置にジャンプ）
+
+:main
+PUSH PC + 2; JMP の次のPCをスタックに保存
+JMP funcB
+EXIT
+```
+
+見やすいように表にします。<bre>
+
+| インデックス | コード                             | 解説 |
+|-------------|----------------------------------|------|
+| 0           | `:funcA`                          | ラベル `funcA` の位置。関数Aの開始地点 |
+| 1           | `PRINT "A"`                       | "A" を出力 |
+| 2           | `POP W`                           | スタックから値を取り出し、Wレジスタに代入 |
+| 3           | `JMP W`                           | Wレジスタの値にジャンプ（呼び出し元に戻る） |
+| 4           | `－`                              | － |
+| 5           | `:funcB`                          | ラベル `funcB` の位置。関数Bの開始地点 |
+| 6           | `PUSH PC + 2`                     | 次の命令（PRINT "B"）の位置をスタックに保存（リターンアドレス） |
+| 7           | `JMP funcA`                       | 関数Aへジャンプ |
+| 8           | `PRINT "B"`                       | "B" を出力（実際には呼ばれない） |
+| 9           | `POP W`                           | スタックから値を取り出し、Wレジスタに代入 |
+| 10          | `JMP W`                           | Wの値にジャンプ（戻り処理） |
+| 11          | `－`                              | － |
+| 12          | `:main`                           | ラベル `main` の位置。メイン処理の開始地点 |
+| 13          | `PUSH PC + 2`                     | 次の命令（EXIT）の位置をスタックに保存（リターンアドレス） |
+| 14          | `JMP funcB`                       | 関数Bへジャンプ（B→A→リターンの流れを作る） |
+| 15          | `EXIT`                            | プログラム終了 |
+
+## ユーザー定義関数呼び出し時のスタック状況
+![呼び出し時のスタック状況](./figure/stack_of_call.png)
+
+
+
+## ユーザー定義関数戻り時の時のスタック状況
+![戻り時のスタック状況](./figure/return_of_call.png)
 
 # ユーザー定義関数
 
