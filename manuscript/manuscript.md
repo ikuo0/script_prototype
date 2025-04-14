@@ -26,7 +26,7 @@ SQLや KQL / Azure Data Explorer のようなDSL（ドメイン特化言語）�
 
 ## 本書の構成
 CPU、メモリの仕組みを簡単に説明し、その後は擬似アセンブラ、中間言語の解説に大半を割くことになります。<br>
-本書では JavaScript でスクリプト言語を作っていますが、実際に使うスクリプト言語は C/C++、Java 等の動作が高速なコンパイル言語で作ることになるでしょう。<br>
+本書では JavaScript でスクリプト言語を作っていますが、実際にスクリプト言語を作る時は C/C++、Java 等の動作が高速なコンパイル言語で作ることになるでしょう。<br>
 その前段階の試作品を作るためにスクリプト言語でスクリプト言語を作り、仕組みの理解、設計・実装に必要な物を学びます。<br>
 
 ## スクリプト言語の作り方、雑なゴール解説
@@ -61,8 +61,10 @@ END_MAIN
 }
 ```
 
+コードのコメントに `レジスタ` とありますが、実際のレジスタでなく概念のレジスタです。<br>
 冒頭にあった `「アセンブラのような構造配列」` とはこの `中間言語` の事を指しています。<br>
 中間言語を専用のロジック（VM）で実行することでスクリプト言語が動作します。<br>
+
 
 「スクリプト言語を作る」とは「ソースコード」を「中間言語」に変換する変換器を作る事です。
 
@@ -117,7 +119,7 @@ CPU と 1KB のメモリがあることを想像してください。<br>
 
 このようにCPUはあるアドレスから命令を読み込み実行、アドレスを加算して命令を読み込み実行、アドレスを加算して命令を読み込み実行、アドレスを加算して...　と繰り返してプログラムを動作させます。<br>
 
-> 実際の CPU の PC は＋１ではありません、MOV等の命令毎に加算バイト数が設定されており２バイト～４バイト以上PCに加算されます。
+> 実際の CPU の PC は＋１ではありません、MOV等の命令毎に加算バイト数が設定されており２バイト～４バイト以上の値がPCに加算されます。
 
 ### 動作例１　CPUがプログラムを実行した結果
 「表１　命令サンプル」のメモリ状態でCPUを起動し「動作定義１」に従い動作した場合の実行結果<br>
@@ -387,7 +389,7 @@ CPU設計をシンプルに保つため、動作クロック（処理時間）�
 - 足し算機能とは？
   - レジスタの値で足し算する
     - `LHSレジスタ、RHSレジスタ` を作り、足し算の結果は `LHSレジスタ` に格納する
-      - レジスタに数値を変数からコピーする命令が必要
+      - レジスタに変数から数値をコピーする命令が必要
         - `LOADLHS a` = シンボル a の値を `LHSレジスタ` に設定する
         - `LOADRHS b` = シンボル b の値を `RHSレジスタ` に設定する
   - LHS、RHSを設定した状態で `ADD` を実行したら `LHSレジスタ` に LHS + RHS の値を設定する
@@ -1524,7 +1526,7 @@ execute();
 
 # だいぶプログラムぽくなってきた
 今までの解説内容で `演算` `分岐` `ループ` ができるようになりました。<br>
-だいぶプログラムぽくなってきたのではないでしょうか？<br>
+だいぶプログラム言語らしい機能が備わってきたのではないでしょうか？<br>
 `関数` 又は `サブルーチン` という機能を部品化する概念を作ったら完全なプログラミング言語ができそうです。<br>
 `関数` 又は `サブルーチン` を本書では **`ユーザー定義関数`** と呼ぶことにします。<br>
 
@@ -1586,48 +1588,62 @@ execute();
 
 
 
-この疑似アセンブラは :main(12行目) から開始されます。<br>
+この疑似アセンブラは :main(19行目) から開始されます。<br>
 
 ```
-:funcA
-PRINT "A"
-POP W; スタックから取り出した値を W レジスタに代入
-JMP W; W の値を PC に設定（W の指す位置にジャンプ）
+:funcC
+PRINT "C"
+POP W         ; funcB からの戻り先を取得
+JMP W
 
 :funcB
-PUSH PC + 2; JMP の次のPCをスタックに保存
-JMP funcA
+PUSH PC + 2   ; funcC から戻る場所
+JMP funcC
 PRINT "B"
-POP W; スタックから取り出した値を W レジスタに代入
-JMP W; W の値を PC に設定（W の指す位置にジャンプ）
+POP W         ; funcA からの戻り先を取得
+JMP W
 
-:main; ココから開始
-PUSH PC + 2; JMP の次のPCをスタックに保存
+:funcA
+PUSH PC + 2   ; funcB から戻る場所
 JMP funcB
+PRINT "A"
+POP W         ; main からの戻り先を取得
+JMP W
+
+:main
+PUSH PC + 2   ; funcA から戻る場所
+JMP funcA
+PRINT "MAIN DONE"
 EXIT
 ```
 
 見やすいように表にします。<br>
-開始は インデックス 12 からになります、:main 等のラベル行はなにも処理せず次の行の処理へ移行します。<br>
+開始は インデックス 16 からになります、:main 等のラベル行はなにも処理せず次の行の処理へ移行します。<br>
 
-| インデックス | コード                             | 解説 |
-|-------------|----------------------------------|------|
-| 0           | `:funcA`                          | ラベル `funcA` の位置。関数Aの開始地点 |
-| 1           | `PRINT "A"`                       | "A" を出力 |
-| 2           | `POP W`                           | スタックから値を取り出し、Wレジスタに代入 |
-| 3           | `JMP W`                           | Wレジスタの値にジャンプ（呼び出し元に戻る） |
-| 4           | `－`                              | － |
-| 5           | `:funcB`                          | ラベル `funcB` の位置。関数Bの開始地点 |
-| 6           | `PUSH PC + 2`                     | 関数呼び出し後の復帰位置をスタックに保存|
-| 7           | `JMP funcA`                       | 関数Aへジャンプ |
-| 8           | `PRINT "B"`                       | "B" を出力 |
-| 9           | `POP W`                           | スタックから値を取り出し、Wレジスタに代入 |
-| 10          | `JMP W`                           | Wの値にジャンプ（戻り処理） |
-| 11          | `－`                              | － |
-| 12          | `:main`                           | ラベル `main` の位置。メイン処理の開始地点 |
-| 13          | `PUSH PC + 2`                     | 関数呼び出し後の復帰 PC をスタックに保存 |
-| 14          | `JMP funcB`                       | 関数Bへジャンプ（B→A→リターンの流れを作る） |
-| 15          | `EXIT`                            | プログラム終了 |
+| インデックス | コード                         | 解説                                                                 |
+|--------------|------------------------------|----------------------------------------------------------------------|
+| 0            | `:funcC`                      | ユーザー定義関数 funcC の開始ラベル                                   |
+| 1            | `PRINT "C"`                  | "C" を表示（funcC の処理内容）                                       |
+| 2            | `POP W`                      | スタックの先頭から戻り先アドレスを取り出して W レジスタに格納             |
+| 3            | `JMP W`                      | W に格納されたアドレス（funcB の続き）にジャンプ                        |
+| 4            | `:funcB`                      | ユーザー定義関数 funcB の開始ラベル                                   |
+| 5            | `PUSH PC + 2`                | funcC 呼び出し後に戻るためのアドレス（次の PRINT 文の位置）をスタックに積む |
+| 6            | `JMP funcC`                  | funcC へジャンプ                                                     |
+| 7            | `PRINT "B"`                  | "B" を表示（funcB の処理内容）                                       |
+| 8            | `POP W`                      | スタックから funcA の戻り先アドレスを取り出し、W に格納                 |
+| 9            | `JMP W`                      | W に格納されたアドレス（funcA の続き）にジャンプ                        |
+| 10           | `:funcA`                      | ユーザー定義関数 funcA の開始ラベル                                   |
+| 11           | `PUSH PC + 2`                | funcB 呼び出し後に戻るためのアドレスをスタックに積む                     |
+| 12           | `JMP funcB`                  | funcB へジャンプ                                                     |
+| 13           | `PRINT "A"`                  | "A" を表示（funcA の処理内容）                                       |
+| 14           | `POP W`                      | スタックから main の戻り先アドレスを取り出し、W に格納                  |
+| 15           | `JMP W`                      | W に格納されたアドレス（main の続き）にジャンプ                        |
+| 16           | `:main`                       | main 関数の開始ラベル                                                |
+| 17           | `PUSH PC + 2`                | funcA 呼び出し後に戻るためのアドレスをスタックに積む                     |
+| 18           | `JMP funcA`                  | funcA へジャンプ                                                     |
+| 19           | `PRINT "MAIN DONE"`          | "MAIN DONE" を表示（すべての処理が終わったことを示す）                 |
+| 20           | `EXIT`                       | プログラム終了                                                       |
+
 
 ## ユーザー定義関数呼び出し時のスタック状況
 ![呼び出し時のスタック状況](./figure/stack_of_call.png)
@@ -1635,9 +1651,417 @@ EXIT
 
 
 ## ユーザー定義関数戻り時の時のスタック状況
-![戻り時のスタック状況](./figure/return_of_call.png)
+![戻り時のスタック状況](./figure/stack_of_return.png)
 
-# ユーザー定義関数
+
+## PC の制御を自動的に行う命令を作る
+スタックを使用して呼び出し元に戻る仕組みを作りましたが、かなり面倒ですね、そして毎回同じ事をやっているのだから「そういう機能」にまとめられそうです。<br>
+そこで次の命令を作成します<br>
+
+|命令名|機能|構文|
+|-|-|-|
+|CALL|現在のPCに +1 した値（次の行）をスタックにPUSHし指定ラベルにJMPする|`CALL funcA`|
+|RET|スタックからPOPしたPCにJMPする|`RET`|
+
+## CALL、RETを使って実装
+
+PUSH, POP でPCの値を保存、復帰していましたが、新たに作った CALL、 RET 命令でさきほどのサンプルコードを作り直します。<br>
+
+```
+:funcC
+PRINT "C"
+RET
+
+:funcB
+CALL funcC
+PRINT "B"
+RET
+
+:funcA
+CALL funcB
+PRINT "A"
+RET
+
+:main
+CALL funcA
+PRINT "MAIN DONE"
+EXIT
+
+```
+
+だいぶスッキリしましたね、将来的に中間言語は自動的に作る物とはいえシンプルな作りのほうが良いですね。<br>
+
+次の表を見てスタックの動きを追いかけてみましょう。<br>
+プログラムは :main(11行目) から開始されます。<br>
+
+### 呼び出し時のスタックの動き（main～funcC RETの直前まで）
+
+| インデックス | コード              | 解説                                                                 | 呼び出し時のスタック|
+|--------------|---------------------|----------------------------------------------------------------------|--------------------|
+| 0            | `:funcC`            | ユーザー定義関数 funcC の開始ラベル                         | [13, 9, 5] |
+| 1            | `PRINT "C"`         | "C" を表示（funcC の処理内容）                          | [13, 9, 5]|
+| 2            | `RET`               | スタックトップ（funcBの戻り先）へジャンプ                       | [-] |
+| 3            | `:funcB`            | funcB の開始ラベル                                     | [13, 9] |
+| 4            | `CALL funcC`        | funcC を呼び出し、戻り先（PC+1）を PUSH              | [13, 9, 5] |
+| 5            | `PRINT "B"`         | funcC から戻ってきた後の処理                               | [-] |
+| 6            | `RET`               | funcA の戻り先へジャンプ                                  | [-]      |
+| 7            | `:funcA`            | funcA の開始ラベル                                      | [13]      |
+| 8            | `CALL funcB`        | funcB を呼び出し、戻り先（PC+1）を PUSH               | [13, 9] |
+| 9            | `PRINT "A"`         | funcB から戻ってきた後の処理                                | [-]      |
+| 10           | `RET`               | main の戻り先へジャンプ                                    | [-]                 |
+| 11           | `:main`             | main 関数の開始ラベル                                    | []                 |
+| 12           | `CALL funcA`        | funcA を呼び出し、戻り先（PC+1）を PUSH                | [13]      |
+| 13           | `PRINT "MAIN DONE"` | すべての関数から戻ってきたあとのメッセージ                          |[-]|
+| 14           | `EXIT`              | プログラム終了                                            |[-]|
+
+
+### 関数戻り時のスタックの動き（funcC RET から main に戻るまで）
+
+| インデックス | コード              | 解説                                                                 | 戻り時のスタック|
+|--------------|---------------------|----------------------------------------------------------------------|--------------------|
+| 0            | `:funcC`            | ユーザー定義関数 funcC の開始ラベル                         | [-] |
+| 1            | `PRINT "C"`         | "C" を表示（funcC の処理内容）                          | [13, 9, 5]|
+| 2            | `RET`               | funcBの戻り先（5）へジャンプ                       | [13, 9] |
+| 3            | `:funcB`            | funcB の開始ラベル                                     | [-] |
+| 4            | `CALL funcC`        | funcC を呼び出し、戻り先（funcBの次行）を PUSH              | [13, 9] |
+| 5            | `PRINT "B"`         | funcC から戻ってきた後の処理                               | [13, 9] |
+| 6            | `RET`               | funcA の戻り先（9）へジャンプ| [13]      |
+| 7            | `:funcA`            | funcA の開始ラベル                                      | []      |
+| 8            | `CALL funcB`        | funcB を呼び出し、戻り先（funcAの次行）を PUSH               | [-] |
+| 9            | `PRINT "A"`         | funcB から戻ってきた後の処理                                | [13]      |
+| 10           | `RET`               | main の戻り先（13）へジャンプ                                    | []                 |
+| 11           | `:main`             | main 関数の開始ラベル                                    | []                 |
+| 12           | `CALL funcA`        | funcA を呼び出し、戻り先（mainの次行）を PUSH                | []      |
+| 13           | `PRINT "MAIN DONE"` | すべての関数から戻ってきたあとのメッセージ                          |[]|
+| 14           | `EXIT`              | プログラム終了                                            |[]|
+
+## ユーザー定義関数の実装、主要部のみ
+
+ユーザー定義関数の中間言語を次のように実装します。<br>
+
+``` javascript
+function execute() {
+    /*
+        FUNCTION funcC
+          PRINT "C"
+        END_FUNCTION
+
+        FUNCTION funcB
+          CALL funcC
+          PRINT "B"
+        END_FUNCTION
+
+        FUNCTION funcA
+          CALL funcB
+          PRINT "A"
+        END_FUNCTION
+
+        MAIN
+          CALL funcA
+        END_MAIN
+    */
+        var operations_list = [
+            // funcC
+            [Operations.LABEL, "funcC"],                    // 0: 関数funcCの先頭
+            [Operations.PRINT_STR, "C"],                    // 1: "C" を表示
+            [Operations.RET],                               // 2: 呼び出し元に戻る
+        
+            // funcB
+            [Operations.LABEL, "funcB"],                    // 3: 関数funcBの先頭
+            [Operations.CALL, "funcC"],                     // 4: funcCを呼び出し
+            [Operations.PRINT_STR, "B"],                    // 5: "B" を表示
+            [Operations.RET],                               // 6: 呼び出し元に戻る
+        
+            // funcA
+            [Operations.LABEL, "funcA"],                    // 7: 関数funcAの先頭
+            [Operations.CALL, "funcB"],                     // 8: funcBを呼び出し
+            [Operations.PRINT_STR, "A"],                    // 9: "A" を表示
+            [Operations.RET],                               // 10: 呼び出し元に戻る
+        
+            // main
+            [Operations.LABEL, "main"],                     // 11: MAIN関数の先頭
+            [Operations.CALL, "funcA"],                     // 12: funcAを呼び出し
+            [Operations.EXIT],                              // 13: プログラム終了
+        ];
+        
+
+    // ジャンプテーブルを設定する
+    var jumpTable = {
+        "main": 11,
+        "funcA": 7,
+        "funcB": 3,
+        "funcC": 0,
+    }
+    var runtimeCtx = new RuntimeContext(jumpTable);
+    runtimeCtx.PC = jumpTable["main"]; // プログラムカウンタをMAIN関数の先頭に設定する
+    while(runtimeCtx.PC < operations_list.length) {
+        var operation = operations_list[runtimeCtx.PC];
+        var prePC = runtimeCtx.PC;
+        operation[0](runtimeCtx, operation.slice(1));
+        if(runtimeCtx.PC !== prePC) {
+            // PC が変更された場合はPCの加算をスキップする
+        } else {
+            runtimeCtx.PC += 1;
+        }
+    }
+}
+```
+
+## ユーザー定義関数の実装、全体
+
+``` javascript
+
+/**
+ * 実行時コンテキスト
+ * @constructor
+ * @property {number} PC プログラムカウンタ
+ * @property {number} LHS 左辺レジスタ
+ * @property {number} RHS 右辺レジスタ
+ * @property {Object.<string, number>} variable 変数
+ * @property {Object.<string, number>} jumpTable ジャンプテーブル
+ */
+function RuntimeContext(jumpTable) {
+    var self = this;
+    self.PC = 0;
+    self.LHS = 0;
+    self.RHS = 0;
+    self.variable = {};
+    self.jumpTable = jumpTable;
+    self.stack = [];
+}
+
+/**
+ * 命令クラス
+ */
+function Operations(){};
+
+/**
+ * 変数を作る
+ * @param {RuntimeContext} runtimeCtx
+ * @param {string} args[0] 変数名
+ * @param {number} args[1] 初期値
+ */
+Operations.DATA = function DATA(runtimeCtx, args) {
+    runtimeCtx.variable[args[0]] = args[1];
+}
+
+/**
+ * LHSレジスタに変数から値を読み込む
+ * @param {RuntimeContext} runtimeCtx 
+ * @param {string} args[0] 変数名
+ */
+Operations.LOADLHS = function LOADLHS(runtimeCtx, args) {
+    runtimeCtx.LHS = runtimeCtx.variable[args[0]];
+}
+
+/**
+ * RHSレジスタに値を設定する
+ * @param {RuntimeContext} runtimeCtx 
+ * @param {string} args[0] 変数名
+ */
+Operations.LOADRHS = function LOADRHS(runtimeCtx, args) {
+    runtimeCtx.RHS = runtimeCtx.variable[args[0]];
+}
+
+/**
+ * LHSレジスタの値を変数にコピーする
+ * @param {RuntimeContext} runtimeCtx
+ * @param {string} args[0] 変数名
+ */
+Operations.STORELHS = function STORELHS(runtimeCtx, args) {
+    runtimeCtx.variable[args[0]] = runtimeCtx.LHS;
+}
+
+/**
+ * LHSレジスタにRHSレジスタの値を加算し、結果をLHSレジスタに格納する
+ * @param {RuntimeContext} runtimeCtx 
+ */
+Operations.ADD = function ADD(runtimeCtx, args) {
+    runtimeCtx.LHS = runtimeCtx.LHS + runtimeCtx.RHS;
+}
+
+/**
+ * レジスタの値を標準出力に出力する
+ * @param {RuntimeContext} runtimeCtx 
+ * @param {string} args[0] レジスタ名
+ */
+Operations.PRINT_REG = function PRINT_REG(runtimeCtx, args) {
+    console.log(runtimeCtx[args[0]]);
+}
+
+/**
+ * 変数の値を標準出力に出力する
+ * @param {RuntimeContext} runtimeCtx
+ * @param {string} args[0] 変数名
+ */
+Operations.PRINT_VAR = function PRINT_VAR(runtimeCtx, args) {
+    console.log(runtimeCtx.variable[args[0]]);
+}
+
+/**
+ * 文字列を標準出力に出力する
+ * @param {RuntimeContext} runtimeCtx
+ * @param {string} args[0] 文字列
+ */
+Operations.PRINT_STR = function PRINT_STR(runtimeCtx, args) {
+    console.log(args[0]);
+}
+
+/**
+ * LHS と RHS を比較して、LHSのほうが大きい場合にLHSに1を設定する
+ * 事前に LHS と RHS に値を設定しておく必要がある
+ * @param {RuntimeContext} runtimeCtx
+ */
+Operations.GT = function GT(runtimeCtx, args) {
+    if (runtimeCtx.LHS > runtimeCtx.RHS) {
+        runtimeCtx.LHS = 1;
+    } else {
+        runtimeCtx.LHS = 0;
+    }
+}
+
+/**
+ * LHS と RHS を比較して、LHSのほうが大きいか等しい場合にLHSに1を設定する
+ * 事前に LHS と RHS に値を設定しておく必要がある
+ * @param {RuntimeContext} runtimeCtx
+ */
+Operations.GE = function GE(runtimeCtx, args) {
+    if (runtimeCtx.LHS >= runtimeCtx.RHS) {
+        runtimeCtx.LHS = 1;
+    } else {
+        runtimeCtx.LHS = 0;
+    }
+}
+
+/**
+ * 指定したラベルにジャンプする
+ * @param {RuntimeContext} runtimeCtx
+ * @param {string} args[0] ラベル名
+ */
+Operations.JMP = function JMP(runtimeCtx, args) {
+    runtimeCtx.PC = runtimeCtx.jumpTable[args[0]];
+}
+/**
+ * LHS の値が 0 だったら指定したラベルにジャンプする
+ * @param {RuntimeContext} runtimeCtx
+ * @param {string} args[0] ラベル名
+ */
+Operations.JZ = function JZ(runtimeCtx, args) {
+    if (runtimeCtx.LHS === 0) {
+        runtimeCtx.PC = runtimeCtx.jumpTable[args[0]];
+    }
+}
+/**
+ * 関数呼び出し
+ * @param {RuntimeContext} runtimeCtx
+ * @param {string} args[0] 関数名（ラベル名）
+ */
+Operations.CALL = function CALL(runtimeCtx, args) {
+    runtimeCtx.stack.push(runtimeCtx.PC + 1); // 現在のPCをスタックに保存
+    runtimeCtx.PC = runtimeCtx.jumpTable[args[0]];
+}
+
+/**
+ * 関数から戻る
+ * @param {RuntimeContext} runtimeCtx
+ */
+Operations.RET = function RET(runtimeCtx, args) {
+    runtimeCtx.PC = runtimeCtx.stack.pop(); // スタックからPCを取得
+}
+
+/**
+ * ラベルを定義する
+ * @param {RuntimeContext} runtimeCtx
+ * @param {string} args[0] ラベル名
+ */
+Operations.LABEL = function LABEL(runtimeCtx, args) {
+    // NOP
+}
+
+/**
+ * 終了命令
+ * @param {RuntimeContext} runtimeCtx
+ */
+Operations.EXIT = function EXIT(runtimeCtx, args) {
+    // NOP
+}
+
+function execute() {
+    /*
+        FUNCTION funcC
+          PRINT "C"
+        END_FUNCTION
+
+        FUNCTION funcB
+          CALL funcC
+          PRINT "B"
+        END_FUNCTION
+
+        FUNCTION funcA
+          CALL funcB
+          PRINT "A"
+        END_FUNCTION
+
+        MAIN
+          CALL funcA
+        END_MAIN
+    */
+        var operations_list = [
+            // funcC
+            [Operations.LABEL, "funcC"],                    // 0: 関数funcCの先頭
+            [Operations.PRINT_STR, "C"],                    // 1: "C" を表示
+            [Operations.RET],                               // 2: 呼び出し元に戻る
+        
+            // funcB
+            [Operations.LABEL, "funcB"],                    // 3: 関数funcBの先頭
+            [Operations.CALL, "funcC"],                     // 4: funcCを呼び出し
+            [Operations.PRINT_STR, "B"],                    // 5: "B" を表示
+            [Operations.RET],                               // 6: 呼び出し元に戻る
+        
+            // funcA
+            [Operations.LABEL, "funcA"],                    // 7: 関数funcAの先頭
+            [Operations.CALL, "funcB"],                     // 8: funcBを呼び出し
+            [Operations.PRINT_STR, "A"],                    // 9: "A" を表示
+            [Operations.RET],                               // 10: 呼び出し元に戻る
+        
+            // main
+            [Operations.LABEL, "main"],                     // 11: MAIN関数の先頭
+            [Operations.CALL, "funcA"],                     // 12: funcAを呼び出し
+            [Operations.EXIT],                              // 13: プログラム終了
+        ];
+        
+
+    // ジャンプテーブルを設定する
+    var jumpTable = {
+        "main": 11,
+        "funcA": 7,
+        "funcB": 3,
+        "funcC": 0,
+    }
+    var runtimeCtx = new RuntimeContext(jumpTable);
+    runtimeCtx.PC = jumpTable["main"]; // プログラムカウンタをMAIN関数の先頭に設定する
+    while(runtimeCtx.PC < operations_list.length) {
+        var operation = operations_list[runtimeCtx.PC];
+        var prePC = runtimeCtx.PC;
+        operation[0](runtimeCtx, operation.slice(1));
+        if(runtimeCtx.PC !== prePC) {
+            // PC が変更された場合はPCの加算をスキップする
+        } else {
+            runtimeCtx.PC += 1;
+        }
+    }
+}
+
+execute();
+
+```
+
+# 中間言語についての解説の区切り
+
+`演算` 、 `分岐(IF)` 、 `ループ(while)` 、 `ユーザー定義関数` の中間言語の解説が終わりました。<br>
+スクリプト言語を中間言語に変換する機構を作ればスクリプト言語の完成です。<br>
+ユーザー定義関数の引数、戻り値の扱いについてはテキスト解析の項で解説します。<br>
+
 
 # テキスト解析
 
